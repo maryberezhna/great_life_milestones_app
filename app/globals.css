@@ -1,26 +1,268 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ============================================================
+   SPHERE DESIGN SYSTEM TOKENS
+   Variables are bare HSL channels (no hsl() wrapper) so DS
+   components can use them as: color: hsl(var(--text-strong))
+   ============================================================ */
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Warm neutral ramp */
+  --neutral-0:   34 40% 100%;
+  --neutral-50:  36 38% 99%;
+  --neutral-100: 36 30% 96%;
+  --neutral-150: 36 24% 93%;
+  --neutral-200: 36 18% 89%;
+  --neutral-300: 34 14% 82%;
+  --neutral-400: 32 10% 64%;
+  --neutral-500: 30  8% 48%;
+  --neutral-600: 28  9% 38%;
+  --neutral-700: 26 11% 27%;
+  --neutral-800: 26 14% 17%;
+  --neutral-900: 28 16% 11%;
+  --neutral-950: 30 18%  7%;
+
+  /* Violet primary */
+  --violet-50:  262 90% 97%;
+  --violet-100: 262 88% 94%;
+  --violet-200: 262 86% 87%;
+  --violet-300: 262 84% 78%;
+  --violet-400: 263 80% 70%;
+  --violet-500: 262 83% 64%;
+  --violet-600: 262 83% 58%;
+  --violet-700: 263 70% 50%;
+  --violet-800: 263 67% 41%;
+  --violet-900: 264 60% 33%;
+
+  /* Status */
+  --green-500: 150 52% 40%;  --green-100: 150 44% 92%;
+  --amber-500:  38 88% 48%;  --amber-100:  40 86% 92%;
+  --clay-500:   18 58% 56%;  --clay-100:   20 60% 93%;
+  --red-500:     2 72% 55%;  --red-100:     4 78% 95%;
+
+  /* ---- Semantic (bare HSL channels — DS components read these) ---- */
+  --background:        var(--neutral-50);
+  --surface-sunken:    var(--neutral-100);
+  --surface-card:      var(--neutral-0);
+  --surface-raised:    var(--neutral-0);
+  --surface-hover:     var(--neutral-100);
+
+  --text-strong:       var(--neutral-900);
+  --text-body:         var(--neutral-800);
+  --text-muted:        var(--neutral-500);
+  --text-faint:        var(--neutral-400);
+  --text-on-accent:    0 0% 100%;
+
+  --border-subtle:     var(--neutral-200);
+  --border-strong:     var(--neutral-300);
+  --border-field:      var(--neutral-300);
+
+  --primary:           var(--violet-600);
+  --primary-hover:     var(--violet-700);
+  --primary-soft:      var(--violet-100);
+  --primary-on:        0 0% 100%;
+  --ring:              var(--violet-600);
+
+  --success:           var(--green-500);   --success-soft:  var(--green-100);
+  --warning:           var(--amber-500);   --warning-soft:  var(--amber-100);
+  --overdue:           var(--clay-500);    --overdue-soft:  var(--clay-100);
+  --hold:              var(--neutral-400); --hold-soft:     var(--neutral-150);
+  --destructive:       var(--red-500);     --destructive-soft: var(--red-100);
+
+  /* Sphere accents */
+  --sphere-sage:    150 38% 42%; --sphere-sage-soft:    150 36% 93%;
+  --sphere-blue:    214 64% 54%; --sphere-blue-soft:    214 70% 94%;
+  --sphere-violet:  262 60% 60%; --sphere-violet-soft:  262 70% 95%;
+  --sphere-rose:    344 56% 58%; --sphere-rose-soft:    344 64% 95%;
+  --sphere-teal:    186 54% 40%; --sphere-teal-soft:    186 48% 92%;
+  --sphere-amber:    36 72% 48%; --sphere-amber-soft:    38 76% 92%;
+  --sphere-clay:     16 52% 54%; --sphere-clay-soft:     18 56% 93%;
+  --sphere-indigo:  232 52% 58%; --sphere-indigo-soft:  232 60% 95%;
+  --sphere-dormant:  30  6% 60%; --sphere-dormant-soft:  34 14% 94%;
+
+  /* Radius */
+  --radius-xs:   6px;
+  --radius-sm:   8px;
+  --radius-md:   12px;
+  --radius-lg:   16px;
+  --radius-xl:   22px;
+  --radius-2xl:  28px;
+  --radius-pill: 999px;
+  --radius:      12px; /* shadcn base */
+
+  /* Shadows (warm-tinted, soft) */
+  --shadow-xs: 0 1px 2px hsl(28 20% 12% / 0.04);
+  --shadow-sm: 0 1px 2px hsl(28 20% 12% / 0.05), 0 2px 6px hsl(28 20% 12% / 0.04);
+  --shadow-md: 0 2px 4px hsl(28 20% 12% / 0.05), 0 8px 20px hsl(28 20% 12% / 0.07);
+  --shadow-lg: 0 4px 8px hsl(28 20% 12% / 0.06), 0 16px 40px hsl(28 20% 12% / 0.10);
+  --shadow-xl: 0 8px 16px hsl(28 20% 12% / 0.08), 0 28px 64px hsl(28 20% 12% / 0.14);
+  --shadow-focus: 0 0 0 3px hsl(var(--ring) / 0.28);
+
+  /* Typography semantic roles (DS spec) */
+  --font-display:    800 2.75rem/1.15  var(--font-sans);
+  --font-goal-title: 700 2.25rem/1.15  var(--font-sans);
+  --font-h1:         700 1.75rem/1.3   var(--font-sans);
+  --font-h2:         600 1.375rem/1.3  var(--font-sans);
+  --font-card-title: 600 1.125rem/1.3  var(--font-sans);
+  --font-body:       400 1rem/1.5      var(--font-sans);
+  --font-label:      500 0.875rem/1.3  var(--font-sans);
+  --font-caption:    500 0.75rem/1.3   var(--font-sans);
+  --tracking-caps:   0.06em;
+
+  /* Motion */
+  --ease-out:    cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.45, 0, 0.2, 1);
+  --ease-soft:   cubic-bezier(0.32, 0.72, 0.28, 1);
+  --dur-fast:    140ms;
+  --dur-base:    220ms;
+  --dur-slow:    360ms;
+}
+
+/* Dark */
+.dark, [data-theme="dark"] {
+  --background:     var(--neutral-950);
+  --surface-sunken: var(--neutral-900);
+  --surface-card:   var(--neutral-900);
+  --surface-raised: var(--neutral-800);
+  --surface-hover:  var(--neutral-800);
+  --text-strong:    34 30% 96%;
+  --text-body:      32 16% 88%;
+  --text-muted:     30  8% 62%;
+  --text-faint:     30  8% 46%;
+  --border-subtle:  28 12% 19%;
+  --border-strong:  26 12% 26%;
+  --border-field:   26 12% 26%;
+  --primary:        var(--violet-400);
+  --primary-hover:  var(--violet-300);
+  --primary-soft:   264 40% 22%;
+  --primary-on:     264 60% 12%;
+  --ring:           var(--violet-400);
+  --success:        150 48% 52%; --success-soft: 150 30% 18%;
+  --warning:         38 80% 56%; --warning-soft:  38 40% 18%;
+  --overdue:         18 55% 62%; --overdue-soft:  18 35% 20%;
+  --hold:            30  6% 50%; --hold-soft:     28 10% 18%;
+  --destructive:      2 66% 60%; --destructive-soft: 4 40% 20%;
+  --sphere-sage-soft:   150 24% 16%; --sphere-blue-soft:   214 36% 18%;
+  --sphere-violet-soft: 262 34% 20%; --sphere-rose-soft:   344 32% 20%;
+  --sphere-teal-soft:   186 34% 15%; --sphere-amber-soft:   36 38% 17%;
+  --sphere-clay-soft:    16 34% 18%; --sphere-indigo-soft: 232 32% 20%;
+  --sphere-dormant:      30  5% 46%; --sphere-dormant-soft: 28 8% 16%;
+  --shadow-xs: 0 1px 2px hsl(0 0% 0% / 0.30);
+  --shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.34), 0 2px 6px hsl(0 0% 0% / 0.30);
+  --shadow-md: 0 2px 4px hsl(0 0% 0% / 0.36), 0 8px 20px hsl(0 0% 0% / 0.40);
+  --shadow-lg: 0 4px 8px hsl(0 0% 0% / 0.40), 0 16px 40px hsl(0 0% 0% / 0.52);
+  --shadow-xl: 0 8px 16px hsl(0 0% 0% / 0.46), 0 28px 64px hsl(0 0% 0% / 0.60);
+}
+
+/* ============================================================
+   SHADCN BRIDGE — components use bg-background, text-muted-foreground etc.
+   These must be actual CSS color values (not bare HSL channels)
+   ============================================================ */
+:root, .dark, [data-theme="dark"] {
+  --tw-bg: hsl(var(--background));
+  --tw-fg: hsl(var(--text-body));
+
+  /* shadcn reads these as full colors */
+  --shadcn-background:           hsl(var(--background));
+  --shadcn-foreground:           hsl(var(--text-body));
+  --shadcn-card:                 hsl(var(--surface-card));
+  --shadcn-card-foreground:      hsl(var(--text-body));
+  --shadcn-popover:              hsl(var(--surface-card));
+  --shadcn-popover-foreground:   hsl(var(--text-body));
+  --shadcn-primary:              hsl(var(--primary));
+  --shadcn-primary-foreground:   hsl(var(--primary-on));
+  --shadcn-secondary:            hsl(var(--surface-sunken));
+  --shadcn-secondary-foreground: hsl(var(--text-body));
+  --shadcn-muted:                hsl(var(--surface-sunken));
+  --shadcn-muted-foreground:     hsl(var(--text-muted));
+  --shadcn-accent:               hsl(var(--surface-hover));
+  --shadcn-accent-foreground:    hsl(var(--text-body));
+  --shadcn-destructive:          hsl(var(--destructive));
+  --shadcn-border:               hsl(var(--border-subtle));
+  --shadcn-input:                hsl(var(--border-field));
+  --shadcn-ring:                 hsl(var(--ring));
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans:    var(--font-manrope, 'Manrope'), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono:    var(--font-jetbrains, 'JetBrains Mono'), ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-heading: var(--font-manrope, 'Manrope'), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-sm:  8px;
+  --radius-md:  12px;
+  --radius-lg:  16px;
+  --radius-xl:  22px;
+  --radius-2xl: 28px;
+  --radius-3xl: 28px;
+  --radius-4xl: 28px;
+
+  --color-background:            var(--shadcn-background);
+  --color-foreground:            var(--shadcn-foreground);
+  --color-card:                  var(--shadcn-card);
+  --color-card-foreground:       var(--shadcn-card-foreground);
+  --color-popover:               var(--shadcn-popover);
+  --color-popover-foreground:    var(--shadcn-popover-foreground);
+  --color-primary:               var(--shadcn-primary);
+  --color-primary-foreground:    var(--shadcn-primary-foreground);
+  --color-secondary:             var(--shadcn-secondary);
+  --color-secondary-foreground:  var(--shadcn-secondary-foreground);
+  --color-muted:                 var(--shadcn-muted);
+  --color-muted-foreground:      var(--shadcn-muted-foreground);
+  --color-accent:                var(--shadcn-accent);
+  --color-accent-foreground:     var(--shadcn-accent-foreground);
+  --color-destructive:           var(--shadcn-destructive);
+  --color-border:                var(--shadcn-border);
+  --color-input:                 var(--shadcn-input);
+  --color-ring:                  var(--shadcn-ring);
+
+  --color-sidebar:                  var(--shadcn-card);
+  --color-sidebar-foreground:       var(--shadcn-foreground);
+  --color-sidebar-border:           var(--shadcn-border);
+  --color-sidebar-accent:           var(--shadcn-accent);
+  --color-sidebar-accent-foreground:var(--shadcn-foreground);
+  --color-sidebar-primary:          var(--shadcn-primary);
+  --color-sidebar-primary-foreground:var(--shadcn-primary-foreground);
+  --color-sidebar-ring:             var(--shadcn-ring);
+
+  --color-chart-1: hsl(var(--primary));
+  --color-chart-2: hsl(var(--success));
+  --color-chart-3: hsl(var(--warning));
+  --color-chart-4: hsl(var(--overdue));
+  --color-chart-5: hsl(var(--hold));
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html {
+    @apply font-sans antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+    text-rendering: optimizeLegibility;
   }
-}
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  body {
+    background: hsl(var(--background));
+    color: hsl(var(--text-body));
+    font-family: var(--font-sans);
+  }
+
+  * { @apply border-border outline-ring/50; }
+
+  ::selection { background: hsl(var(--primary) / 0.15); }
+
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      transition-duration: 0.001ms !important;
+    }
+  }
 }
