@@ -34,7 +34,7 @@ interface Props {
 }
 
 function mkDraft(specific = '', deadline = ''): TaskDraft {
-  return { id: Math.random().toString(36).slice(2), specific, deadline, reminder: false, calendar: false, calendarTime: '09:00', recurrence: 'none' };
+  return { id: Math.random().toString(36).slice(2), specific, deadline, reminder: false, calendar: false, calendarTime: '09:00', recurrence: 'weekly' };
 }
 
 function AutoTextarea({ value, onChange, placeholder, style, className }: {
@@ -370,20 +370,21 @@ export function DecomposeModal({ goal, spheres, onClose }: Props) {
                 Перевір або відредагуй кроки — кожен із дедлайном.
               </p>
 
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {tasks.map((t, idx) => (
                   <div key={t.id} style={{
-                    display: 'flex', gap: 13,
-                    padding: '16px 0',
-                    borderBottom: idx < tasks.length - 1
-                      ? '1px solid hsl(var(--border-subtle) / .55)'
-                      : 'none',
+                    display: 'flex', gap: 12,
+                    padding: '14px 14px 14px 16px',
+                    borderRadius: 'var(--radius-xl)',
+                    background: 'hsl(var(--surface-sunken))',
+                    border: '1.5px solid hsl(var(--border-subtle))',
+                    transition: 'border-color .15s',
                   }}>
                     {/* Step number */}
                     <div style={{ flexShrink: 0, paddingTop: 2 }}>
                       <span style={{
                         width: 24, height: 24, borderRadius: 999, flexShrink: 0,
-                        background: t.specific.trim() ? col : 'hsl(var(--surface-sunken))',
+                        background: t.specific.trim() ? col : 'hsl(var(--surface-base, white))',
                         border: `1.5px solid ${t.specific.trim() ? col : 'hsl(var(--border-subtle))'}`,
                         color: t.specific.trim() ? '#fff' : 'hsl(var(--text-faint))',
                         fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 11,
@@ -503,20 +504,22 @@ export function DecomposeModal({ goal, spheres, onClose }: Props) {
                       )}
                     </div>
 
-                    {/* Delete */}
-                    {tasks.length > 1 && (
-                      <button
-                        onClick={() => setTasks(ts => ts.filter(x => x.id !== t.id))}
-                        style={{
-                          flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer',
-                          color: 'hsl(var(--text-faint))', fontSize: 15, lineHeight: 1,
-                          paddingTop: 3, alignSelf: 'flex-start',
-                          transition: 'color .15s',
-                        }}
-                        onMouseEnter={e => (e.currentTarget.style.color = 'hsl(var(--text-muted))')}
-                        onMouseLeave={e => (e.currentTarget.style.color = 'hsl(var(--text-faint))')}
-                      >✕</button>
-                    )}
+                    {/* Delete — always visible, disabled only for single task */}
+                    <button
+                      onClick={() => tasks.length > 1 && setTasks(ts => ts.filter(x => x.id !== t.id))}
+                      disabled={tasks.length === 1}
+                      title={tasks.length === 1 ? 'Потрібен мінімум 1 крок' : 'Видалити крок'}
+                      style={{
+                        flexShrink: 0, background: 'none', border: 'none',
+                        cursor: tasks.length > 1 ? 'pointer' : 'default',
+                        color: tasks.length > 1 ? 'hsl(var(--text-faint))' : 'hsl(var(--border-subtle))',
+                        fontSize: 14, lineHeight: 1,
+                        paddingTop: 3, alignSelf: 'flex-start',
+                        transition: 'color .15s',
+                      }}
+                      onMouseEnter={e => { if (tasks.length > 1) (e.currentTarget as HTMLButtonElement).style.color = 'hsl(var(--overdue, #dc2626))'; }}
+                      onMouseLeave={e => { if (tasks.length > 1) (e.currentTarget as HTMLButtonElement).style.color = 'hsl(var(--text-faint))'; }}
+                    >🗑</button>
                   </div>
                 ))}
               </div>
@@ -526,22 +529,27 @@ export function DecomposeModal({ goal, spheres, onClose }: Props) {
                   className="ds-add-btn"
                   onClick={() => setTasks(ts => [...ts, mkDraft()])}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: 10,
-                    marginTop: 8, padding: '12px 0',
-                    background: 'none', border: 'none', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    marginTop: 8, padding: '12px',
+                    width: '100%',
+                    background: 'none',
+                    border: '1.5px dashed hsl(var(--border-subtle))',
+                    borderRadius: 'var(--radius-xl)',
+                    cursor: 'pointer',
                     fontFamily: 'var(--font-sans)', fontSize: 13.5, fontWeight: 600,
                     color: 'hsl(var(--text-faint))',
-                    transition: 'color .15s',
+                    transition: 'border-color .15s, color .15s, background .15s',
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.color = 'hsl(var(--text-muted))')}
-                  onMouseLeave={e => (e.currentTarget.style.color = 'hsl(var(--text-faint))')}
+                  onMouseEnter={e => {
+                    const b = e.currentTarget as HTMLButtonElement;
+                    b.style.borderColor = col; b.style.color = col; b.style.background = soft;
+                  }}
+                  onMouseLeave={e => {
+                    const b = e.currentTarget as HTMLButtonElement;
+                    b.style.borderColor = 'hsl(var(--border-subtle))'; b.style.color = 'hsl(var(--text-faint))'; b.style.background = 'none';
+                  }}
                 >
-                  <span style={{
-                    width: 24, height: 24, borderRadius: '50%',
-                    border: '1.5px dashed hsl(var(--border-subtle))',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 15, lineHeight: 1,
-                  }}>+</span>
+                  <span style={{ fontSize: 17, lineHeight: 1 }}>+</span>
                   Додати крок
                 </button>
               )}

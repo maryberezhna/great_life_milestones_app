@@ -69,3 +69,31 @@ export async function setGoalStatus(
     .eq('user_id', userId);
   if (error) throw new Error(error.message);
 }
+
+export async function setGoalSprint(goalId: string, isSprint: boolean): Promise<void> {
+  const userId = await getRequiredUserId();
+  const supabase = await createClient();
+  if (isSprint) {
+    // clear existing sprint for this user's goals first (only one sprint at a time per sphere)
+    const { data: goal } = await supabase
+      .from('plan_goals')
+      .select('sphere_id')
+      .eq('id', goalId)
+      .eq('user_id', userId)
+      .single();
+    if (goal?.sphere_id) {
+      await supabase
+        .from('plan_goals')
+        .update({ is_sprint: false })
+        .eq('user_id', userId)
+        .eq('sphere_id', goal.sphere_id)
+        .neq('id', goalId);
+    }
+  }
+  const { error } = await supabase
+    .from('plan_goals')
+    .update({ is_sprint: isSprint })
+    .eq('id', goalId)
+    .eq('user_id', userId);
+  if (error) throw new Error(error.message);
+}

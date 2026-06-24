@@ -21,6 +21,11 @@ export async function proxy(request: NextRequest) {
     },
   );
 
+  // Skip auth in local development
+  if (process.env.NODE_ENV === 'development') {
+    return supabaseResponse;
+  }
+
   const { data: { user } } = await supabase.auth.getUser();
 
   const pathname = request.nextUrl.pathname;

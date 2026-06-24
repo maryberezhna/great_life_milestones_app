@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { getRequiredUserId } from '@/lib/auth';
 import { ConstellationView } from '@/components/ds/ConstellationView';
+import { EnergyCheckIn } from '@/components/ds/EnergyCheckIn';
 import type { ConstellationGoal, ConstellationSphere } from '@/components/ds/GoalConstellation';
 
 const HEX_TO_KEY: Record<string, string> = {
@@ -37,7 +38,7 @@ export default async function DashboardPage() {
       .eq('archived', false)
       .order('sort_order'),
     supabase.from('plan_goals')
-      .select('id, title, sphere_id, target_date, complexity')
+      .select('id, title, sphere_id, target_date, complexity, is_sprint')
       .eq('user_id', userId)
       .eq('status', 'active'),
     supabase.from('plan_tasks')
@@ -47,7 +48,7 @@ export default async function DashboardPage() {
   ]);
 
   const spheresData = (spheresRaw ?? []) as { id: string; name: string; color: string; icon: string }[];
-  const goalsData  = (goalsRaw  ?? []) as { id: string; title: string; sphere_id: string; target_date: string | null; complexity: string | null }[];
+  const goalsData  = (goalsRaw  ?? []) as { id: string; title: string; sphere_id: string; target_date: string | null; complexity: string | null; is_sprint: boolean }[];
   const tasksData  = (tasksRaw  ?? []) as { goal_id: string | null; status: string }[];
 
   // compute progress per goal: done / total (excluding irrelevant)
@@ -83,12 +84,13 @@ export default async function DashboardPage() {
       progress: td.total > 0 ? td.done / td.total : 0,
       done: td.done,
       total: td.total,
+      isSprint: g.is_sprint ?? false,
     };
   });
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-      <ConstellationView goals={goals} spheres={spheres} />
+      <ConstellationView goals={goals} spheres={spheres} energyWidget={<EnergyCheckIn />} />
     </div>
   );
 }

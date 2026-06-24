@@ -12,6 +12,7 @@ export interface ConstellationGoal {
   progress?: number;
   done?: number;
   total?: number;
+  isSprint?: boolean;
 }
 
 export interface ConstellationSphere {
@@ -90,6 +91,10 @@ export function GoalConstellation({
     <div className={className} style={{ position: 'relative', width, height, ...style }}>
       <style>{`
         @keyframes gc-pop-${uid} { from { transform: scale(.5); } to { transform: scale(1); } }
+        @keyframes gc-sprint-pulse-${uid} {
+          0%, 100% { box-shadow: 0 0 0 0px hsl(var(--sphere-violet) / .55), 0 6px 16px hsl(var(--sphere-violet) / .3); }
+          50% { box-shadow: 0 0 0 8px hsl(var(--sphere-violet) / 0), 0 6px 16px hsl(var(--sphere-violet) / .3); }
+        }
         @keyframes gc-core-${uid} {
           0%,100% { box-shadow: 0 20px 48px rgba(0,0,0,.18), 0 0 0 14px hsl(var(--neutral-900, 12 10% 9%)/.045), 0 0 60px hsl(var(--neutral-900, 12 10% 9%)/.12); }
           50% { box-shadow: 0 20px 48px rgba(0,0,0,.18), 0 0 0 18px hsl(var(--neutral-900, 12 10% 9%)/.05), 0 0 80px hsl(var(--neutral-900, 12 10% 9%)/.17); }
@@ -178,12 +183,16 @@ export function GoalConstellation({
               width: '100%', height: '100%', borderRadius: '50%',
               overflow: 'hidden',
               transform: active ? 'scale(1.09)' : 'scale(1)',
-              animation: reduce ? 'none' : `gc-pop-${uid} .6s ${ease} ${delay}s backwards`,
-              border: `2px solid ${active ? col : `hsl(var(--sphere-${nd.sphere}) / .8)`}`,
+              animation: reduce ? 'none' : nd.isSprint
+                ? `gc-pop-${uid} .6s ${ease} ${delay}s backwards, gc-sprint-pulse-${uid} 2.2s ease-in-out ${delay + 0.6}s infinite`
+                : `gc-pop-${uid} .6s ${ease} ${delay}s backwards`,
+              border: `${nd.isSprint ? 2.5 : 2}px solid ${active ? col : `hsl(var(--sphere-${nd.sphere}) / .8)`}`,
               background: `radial-gradient(circle at 34% 28%, hsl(var(--surface-card)) 0%, ${soft} 70%, ${soft} 100%)`,
               filter: active
                 ? `drop-shadow(0 12px 26px hsl(var(--sphere-${nd.sphere}) / .5))`
-                : `drop-shadow(0 6px 16px hsl(var(--sphere-${nd.sphere}) / .26))`,
+                : nd.isSprint
+                  ? `drop-shadow(0 6px 24px hsl(var(--sphere-${nd.sphere}) / .5))`
+                  : `drop-shadow(0 6px 16px hsl(var(--sphere-${nd.sphere}) / .26))`,
               transition: 'transform .28s ease, filter .28s ease, border-color .28s ease',
             }}>
               {/* liquid fill */}
@@ -209,6 +218,16 @@ export function GoalConstellation({
                 color: 'hsl(var(--text-strong))', textShadow: '0 1px 2px hsl(0 0% 100% / .55)',
                 opacity: active ? 1 : 0, transition: 'opacity .2s ease', pointerEvents: 'none',
               }}>{Math.round(prog * 100)}%</span>
+              {/* sprint badge */}
+              {nd.isSprint && !active && (
+                <span style={{
+                  position: 'absolute', top: 3, right: 3,
+                  width: 14, height: 14, borderRadius: '50%',
+                  background: col, color: '#fff',
+                  fontSize: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  pointerEvents: 'none', fontWeight: 700,
+                }}>⚡</span>
+              )}
             </span>
 
             {/* label */}

@@ -6,6 +6,7 @@ import { AddTaskDialog } from './add-task-dialog';
 import { GoalTaskItem } from '@/components/ds/GoalTaskItem';
 import { ProgressBar } from '@/components/ds/ProgressBar';
 import { GoalStatusToggle } from '@/components/ds/GoalStatusToggle';
+import { SprintToggle } from '@/components/ds/SprintToggle';
 
 const HEX_TO_KEY: Record<string, string> = {
   '#8B5CF6': 'violet',
@@ -32,8 +33,29 @@ interface GoalWithSphere {
   title: string;
   description: string | null;
   status: string;
+  is_sprint: boolean;
   target_date: string | null;
   spheres: { id: string; name: string; color: string | null; icon: string | null }[] | null;
+}
+
+function calcStreak(doneTasks: { updated_at: string }[]): number {
+  if (!doneTasks.length) return 0;
+  const getWeekStart = (d: Date) => {
+    const day = d.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    const mon = new Date(d);
+    mon.setDate(d.getDate() + diff);
+    mon.setHours(0, 0, 0, 0);
+    return mon.getTime();
+  };
+  const weeksWithDone = new Set(doneTasks.map(t => getWeekStart(new Date(t.updated_at))));
+  let streak = 0;
+  let week = getWeekStart(new Date());
+  while (weeksWithDone.has(week)) {
+    streak++;
+    week -= 7 * 86_400_000;
+  }
+  return streak;
 }
 
 export default async function GoalPage({ params }: { params: Promise<{ id: string }> }) {
@@ -44,13 +66,13 @@ export default async function GoalPage({ params }: { params: Promise<{ id: strin
   const [{ data: goal }, { data: tasksRaw }] = await Promise.all([
     supabase
       .from('plan_goals')
-      .select('id, title, description, status, target_date, spheres(id, name, color, icon)')
+      .select('id, title, description, status, is_sprint, target_date, spheres(id, name, color, icon)')
       .eq('id', id)
       .eq('user_id', userId)
       .single(),
     supabase
       .from('plan_tasks')
-      .select('id, specific, action, result, deadline, status, calendar_event_id')
+      .select('id, specific, action, result, deadline, status, calendar_event_id, updated_at')
       .eq('goal_id', id)
       .order('created_at'),
   ]);
@@ -68,8 +90,10 @@ export default async function GoalPage({ params }: { params: Promise<{ id: strin
   const activeTasks = tasks.filter(t => t.status === 'active' || t.status === 'postponed');
   const doneTasks = tasks.filter(t => t.status === 'done' || t.status === 'irrelevant');
 
-  const totalCount = tasks.length;
-  const doneCount = doneTasks.length;
+  const totalCount = tasks.filter(t => t.status !== 'irrelevant').length;
+  const doneCount = tasks.filter(t => t.status === 'done').length;
+  const isQuickWin = totalCount > 0 && totalCount <= 3 && doneCount < totalCount;
+  const streak = calcStreak(tasks.filter(t => t.status === 'done').map(t => ({ updated_at: (t as any).updated_at })));
 
   const deadline = g.target_date
     ? new Date(g.target_date).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -110,8 +134,20 @@ export default async function GoalPage({ params }: { params: Promise<{ id: strin
         )}
 
         {/* Meta row */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
           <GoalStatusToggle goalId={id} currentStatus={g.status} />
+          <SprintToggle goalId={id} isSprint={g.is_sprint ?? false} accent={accent} soft={soft} />
+          {isQuickWin && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              padding: '4px 10px', borderRadius: 'var(--radius-pill)',
+              background: 'hsl(var(--sphere-sage-soft, #D1FAE5))',
+              fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 700,
+              color: 'hsl(var(--sphere-sage, #059669))',
+            }}>
+              ✓ Quick Win
+            </span>
+          )}
           {deadline && (
             <span style={{
               fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 500,
@@ -124,6 +160,15 @@ export default async function GoalPage({ params }: { params: Promise<{ id: strin
           {totalCount > 0 && (
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'hsl(var(--text-muted))' }}>
               {doneCount} / {totalCount} кроків
+            </span>
+          )}
+          {streak > 0 && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600,
+              color: 'hsl(var(--text-muted))',
+            }}>
+              🔥 {streak} {streak === 1 ? 'тиждень' : streak < 5 ? 'тижні' : 'тижнів'} в русі
             </span>
           )}
         </div>

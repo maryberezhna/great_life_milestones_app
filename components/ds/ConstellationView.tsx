@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useEffect, useState, useTransition } from 'react';
+import React from 'react';
 import { GoalConstellation, ConstellationGoal, ConstellationSphere } from './GoalConstellation';
 import { DecomposeModal } from './DecomposeModal';
 import { getGoalTasks, toggleTaskDone, type GoalTask } from '@/app/actions/tasks';
@@ -9,6 +10,7 @@ import { CalendarSyncMenu } from './CalendarSyncMenu';
 interface Props {
   goals: ConstellationGoal[];
   spheres: ConstellationSphere[];
+  energyWidget?: React.ReactNode;
 }
 
 type View = 'all' | 'upcoming' | 'closed';
@@ -306,7 +308,7 @@ function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange }: {
   );
 }
 
-export function ConstellationView({ goals: initialGoals, spheres }: Props) {
+export function ConstellationView({ goals: initialGoals, spheres, energyWidget }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [goals, setGoals] = useState<ConstellationGoal[]>(initialGoals);
   const [dims, setDims] = useState({ w: 1180, h: 680 });
@@ -401,6 +403,13 @@ export function ConstellationView({ goals: initialGoals, spheres }: Props) {
           </button>
         </div>
       </header>
+
+      {/* Energy widget */}
+      {energyWidget && (
+        <div style={{ position: 'relative', padding: '0 40px 0', flexShrink: 0 }}>
+          {energyWidget}
+        </div>
+      )}
 
       {/* Constellation */}
       <div ref={containerRef} style={{ position: 'relative', flex: 1, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
