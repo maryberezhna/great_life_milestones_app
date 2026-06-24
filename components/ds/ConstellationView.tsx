@@ -6,11 +6,11 @@ import { GoalConstellation, ConstellationGoal, ConstellationSphere } from './Goa
 import { DecomposeModal } from './DecomposeModal';
 import { getGoalTasks, toggleTaskDone, type GoalTask } from '@/app/actions/tasks';
 import { CalendarSyncMenu } from './CalendarSyncMenu';
+import { EnergyCheckIn } from './EnergyCheckIn';
 
 interface Props {
   goals: ConstellationGoal[];
   spheres: ConstellationSphere[];
-  energyWidget?: React.ReactNode;
 }
 
 type View = 'all' | 'upcoming' | 'closed';
@@ -308,7 +308,7 @@ function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange }: {
   );
 }
 
-export function ConstellationView({ goals: initialGoals, spheres, energyWidget }: Props) {
+export function ConstellationView({ goals: initialGoals, spheres }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [goals, setGoals] = useState<ConstellationGoal[]>(initialGoals);
   const [dims, setDims] = useState({ w: 1180, h: 680 });
@@ -388,28 +388,25 @@ export function ConstellationView({ goals: initialGoals, spheres, energyWidget }
           <ViewTabs view={view} onView={setView} />
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, paddingTop: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18, paddingTop: 8 }}>
+          <EnergyCheckIn />
+
+          <div style={{ width: 1, height: 20, background: 'hsl(var(--border-subtle))' }} />
+
           <Legend spheres={spheres} filter={filter} onFilter={setFilter} />
 
           {/* Theme toggle */}
           <button onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
             aria-label="Тема" style={{
-              width: 40, height: 40, flexShrink: 0, borderRadius: 999, cursor: 'pointer',
+              width: 34, height: 34, flexShrink: 0, borderRadius: 999, cursor: 'pointer',
               border: '1px solid hsl(var(--border-subtle))', background: 'hsl(var(--surface-card))',
-              color: 'hsl(var(--text-body))', fontSize: 18,
+              color: 'hsl(var(--text-body))', fontSize: 16,
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             }}>
             {theme === 'dark' ? '☀︎' : '☾'}
           </button>
         </div>
       </header>
-
-      {/* Energy widget */}
-      {energyWidget && (
-        <div style={{ position: 'relative', padding: '0 40px 0', flexShrink: 0 }}>
-          {energyWidget}
-        </div>
-      )}
 
       {/* Constellation */}
       <div ref={containerRef} style={{ position: 'relative', flex: 1, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

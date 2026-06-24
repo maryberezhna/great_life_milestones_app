@@ -1,7 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { getRequiredUserId } from '@/lib/auth';
 import { ConstellationView } from '@/components/ds/ConstellationView';
-import { EnergyCheckIn } from '@/components/ds/EnergyCheckIn';
 import type { ConstellationGoal, ConstellationSphere } from '@/components/ds/GoalConstellation';
 
 const HEX_TO_KEY: Record<string, string> = {
@@ -90,7 +89,7 @@ export default async function DashboardPage() {
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-      <ConstellationView goals={goals} spheres={spheres} energyWidget={<EnergyCheckIn />} />
+      <ConstellationView goals={goals} spheres={spheres} />
     </div>
   );
 }
