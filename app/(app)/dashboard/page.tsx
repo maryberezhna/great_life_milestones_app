@@ -37,7 +37,7 @@ export default async function DashboardPage() {
       .eq('archived', false)
       .order('sort_order'),
     supabase.from('plan_goals')
-      .select('id, title, sphere_id, target_date, complexity, is_sprint')
+      .select('id, title, sphere_id, target_date, complexity')
       .eq('user_id', userId)
       .eq('status', 'active'),
     supabase.from('plan_tasks')
@@ -47,7 +47,7 @@ export default async function DashboardPage() {
   ]);
 
   const spheresData = (spheresRaw ?? []) as { id: string; name: string; color: string; icon: string }[];
-  const goalsData  = (goalsRaw  ?? []) as { id: string; title: string; sphere_id: string; target_date: string | null; complexity: string | null; is_sprint: boolean }[];
+  const goalsData  = (goalsRaw  ?? []) as { id: string; title: string; sphere_id: string; target_date: string | null; complexity: string | null }[];
   const tasksData  = (tasksRaw  ?? []) as { goal_id: string | null; status: string }[];
 
   // compute progress per goal: done / total (excluding irrelevant)
@@ -83,7 +83,7 @@ export default async function DashboardPage() {
       progress: td.total > 0 ? td.done / td.total : 0,
       done: td.done,
       total: td.total,
-      isSprint: g.is_sprint ?? false,
+      isSprint: false,
     };
   });
 

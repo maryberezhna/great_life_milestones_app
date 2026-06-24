@@ -6,7 +6,7 @@ import { GoalConstellation, ConstellationGoal, ConstellationSphere } from './Goa
 import { DecomposeModal } from './DecomposeModal';
 import { getGoalTasks, toggleTaskDone, type GoalTask } from '@/app/actions/tasks';
 import { CalendarSyncMenu } from './CalendarSyncMenu';
-import { EnergyCheckIn } from './EnergyCheckIn';
+import { EnergyCenterNode } from './EnergyCheckIn';
 
 interface Props {
   goals: ConstellationGoal[];
@@ -388,11 +388,7 @@ export function ConstellationView({ goals: initialGoals, spheres }: Props) {
           <ViewTabs view={view} onView={setView} />
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 18, paddingTop: 8 }}>
-          <EnergyCheckIn />
-
-          <div style={{ width: 1, height: 20, background: 'hsl(var(--border-subtle))' }} />
-
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, paddingTop: 8 }}>
           <Legend spheres={spheres} filter={filter} onFilter={setFilter} />
 
           {/* Theme toggle */}
@@ -418,6 +414,7 @@ export function ConstellationView({ goals: initialGoals, spheres }: Props) {
           height={dims.h}
           selectedId={selectedId}
           onSelect={g => setSelectedId(g?.id ?? undefined)}
+          centerNode={<EnergyCenterNode />}
         />
 
         {/* Scrim */}

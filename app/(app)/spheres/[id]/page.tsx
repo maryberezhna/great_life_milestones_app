@@ -21,10 +21,8 @@ interface Goal {
   title: string;
   description: string | null;
   status: string;
-  is_sprint: boolean;
   target_date: string | null;
   plan_tasks: { count: number }[];
-  done_tasks: { count: number }[];
 }
 
 export default async function SpherePage({ params }: { params: Promise<{ id: string }> }) {
@@ -36,7 +34,7 @@ export default async function SpherePage({ params }: { params: Promise<{ id: str
     supabase.from('spheres').select('*').eq('id', id).eq('user_id', userId).single(),
     supabase
       .from('plan_goals')
-      .select('id, title, description, status, is_sprint, target_date, plan_tasks(count)')
+      .select('id, title, description, status, target_date, plan_tasks(count)')
       .eq('sphere_id', id)
       .order('created_at', { ascending: false }),
   ]);
@@ -162,8 +160,8 @@ function GoalGroup({
           return (
             <Link key={g.id} href={`/goals/${g.id}`} style={{ textDecoration: 'none' }}>
               <div style={{
-                background: g.is_sprint ? soft : 'hsl(var(--surface-card))',
-                border: `1px solid ${g.is_sprint ? accent + '60' : 'hsl(var(--border-subtle))'}`,
+                background: 'hsl(var(--surface-card))',
+                border: '1px solid hsl(var(--border-subtle))',
                 borderRadius: 'var(--radius-lg)',
                 padding: '14px 16px',
                 opacity: muted ? 0.65 : 1,
@@ -186,15 +184,7 @@ function GoalGroup({
                     }}>
                       {g.title}
                     </div>
-                    {g.is_sprint && (
-                      <span style={{
-                        flexShrink: 0, fontSize: 11, fontWeight: 700,
-                        color: accent, fontFamily: 'var(--font-sans)',
-                        background: accent + '20', padding: '2px 7px',
-                        borderRadius: 'var(--radius-pill)',
-                      }}>⚡ Спринт</span>
-                    )}
-                    {!g.is_sprint && taskCount > 0 && taskCount <= 3 && (
+                    {taskCount > 0 && taskCount <= 3 && (
                       <span style={{
                         flexShrink: 0, fontSize: 11, fontWeight: 700,
                         color: '#059669', fontFamily: 'var(--font-sans)',
