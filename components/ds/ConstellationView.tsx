@@ -63,11 +63,12 @@ function Legend({ spheres, filter, onFilter }: {
   );
 }
 
-function GoalPanel({ goal, spheres, onClose, onDecompose }: {
+function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange }: {
   goal: ConstellationGoal;
   spheres: ConstellationSphere[];
   onClose: () => void;
   onDecompose: () => void;
+  onProgressChange: (goalId: string, done: number, total: number) => void;
 }) {
   const sp  = spheres.find(s => s.key === goal.sphere);
   const col  = `hsl(var(--sphere-${goal.sphere}))`;
@@ -88,11 +89,22 @@ function GoalPanel({ goal, spheres, onClose, onDecompose }: {
   const prog = totalCount > 0 ? doneCount / totalCount : 0;
 
   function handleToggle(taskId: string, isDone: boolean) {
-    // optimistic update
-    setTasks(ts => ts.map(t => t.id === taskId ? { ...t, status: isDone ? 'done' : 'active' } : t));
+    setTasks(ts => {
+      const next = ts.map(t => t.id === taskId ? { ...t, status: isDone ? 'done' : 'active' } : t);
+      const done  = next.filter(t => t.status === 'done').length;
+      onProgressChange(goal.id!, done, next.length);
+      return next;
+    });
     startToggle(async () => {
       try { await toggleTaskDone(taskId, isDone); }
-      catch { setTasks(ts => ts.map(t => t.id === taskId ? { ...t, status: isDone ? 'active' : 'done' } : t)); }
+      catch {
+        setTasks(ts => {
+          const rollback = ts.map(t => t.id === taskId ? { ...t, status: isDone ? 'active' : 'done' } : t);
+          const done = rollback.filter(t => t.status === 'done').length;
+          onProgressChange(goal.id!, done, rollback.length);
+          return rollback;
+        });
+      }
     });
   }
 
@@ -199,12 +211,15 @@ function GoalPanel({ goal, spheres, onClose, onDecompose }: {
           const isDone = t.status === 'done';
           const dl = fmtDeadline(t.deadline);
           return (
-            <button
+            <div
               key={t.id}
+              role="button"
+              tabIndex={0}
               onClick={() => handleToggle(t.id, !isDone)}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') handleToggle(t.id, !isDone); }}
               style={{
                 width: '100%', display: 'flex', alignItems: 'flex-start', gap: 11,
-                padding: '11px 10px', borderRadius: 'var(--radius-md)', border: 'none',
+                padding: '11px 10px', borderRadius: 'var(--radius-md)',
                 background: isDone ? soft : 'transparent', cursor: 'pointer',
                 textAlign: 'left', marginBottom: 4,
                 transition: 'background .18s ease',
@@ -268,7 +283,7 @@ function GoalPanel({ goal, spheres, onClose, onDecompose }: {
               }}>
                 {i + 1}
               </span>
-            </button>
+            </div>
           );
         })}
       </div>
@@ -291,14 +306,23 @@ function GoalPanel({ goal, spheres, onClose, onDecompose }: {
   );
 }
 
-export function ConstellationView({ goals, spheres }: Props) {
+export function ConstellationView({ goals: initialGoals, spheres }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [goals, setGoals] = useState<ConstellationGoal[]>(initialGoals);
   const [dims, setDims] = useState({ w: 1180, h: 680 });
   const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
   const [decomposeGoal, setDecomposeGoal] = useState<ConstellationGoal | null>(null);
   const [filter, setFilter] = useState<string | null>(null);
   const [view, setView] = useState<View>('all');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+
+  function handleProgressChange(goalId: string, done: number, total: number) {
+    setGoals(gs => gs.map(g =>
+      g.id === goalId
+        ? { ...g, progress: total > 0 ? done / total : 0, done, total }
+        : g
+    ));
+  }
 
   useEffect(() => {
     const el = containerRef.current;
@@ -407,6 +431,7 @@ export function ConstellationView({ goals, spheres }: Props) {
             spheres={spheres}
             onClose={() => setSelectedId(undefined)}
             onDecompose={() => { setDecomposeGoal(openGoal); setSelectedId(undefined); }}
+            onProgressChange={handleProgressChange}
           />
         )}
       </div>
