@@ -13,11 +13,14 @@ export interface ConstellationGoal {
   done?: number;
   total?: number;
   isSprint?: boolean;
+  status?: 'active' | 'paused' | 'done';
 }
 
 export interface ConstellationSphere {
+  id: string;
   key: string;
   name: string;
+  color: string;
   icon?: React.ReactNode;
 }
 
@@ -61,9 +64,9 @@ export function GoalConstellation({
   const minW = Math.min(...weights, 1);
   const maxW = Math.max(...weights, 1);
   const rOf = (w?: number) => {
-    if (maxW === minW) return 30;
+    if (maxW === minW) return 38;
     const t = ((w ?? 1) - minW) / (maxW - minW);
-    return 20 + t * 24;
+    return 32 + t * 20;
   };
 
   const n = Math.max(goals.length, 1);
@@ -150,7 +153,7 @@ export function GoalConstellation({
         const soft = `hsl(var(--sphere-${nd.sphere}-soft))`;
         const active = selectedId === nd.id || hovered === nd.id;
         const cosA = Math.cos(nd.a), sinA = Math.sin(nd.a);
-        const gap = 14;
+        const gap = 12;
         const lx = nd.r + (nd.r + gap) * cosA;
         const ly = nd.r + (nd.r + gap) * sinA;
 
@@ -159,6 +162,7 @@ export function GoalConstellation({
         else if (cosA < -0.28) { tx = '-100%'; align = 'right'; }
         else { tx = '-50%'; align = 'center'; }
         const ty = sinA < -0.28 ? '-100%' : sinA > 0.28 ? '0%' : '-50%';
+
         const delay = 0.08 + nd.i * 0.04;
 
         const prog = Math.max(0, Math.min(1, nd.progress == null ? 0 : nd.progress));
@@ -216,7 +220,7 @@ export function GoalConstellation({
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontFamily: 'var(--font-mono)', fontSize: Math.max(9, nd.r * 0.36), fontWeight: 700,
                 color: 'hsl(var(--text-strong))', textShadow: '0 1px 2px hsl(0 0% 100% / .55)',
-                opacity: active ? 1 : 0, transition: 'opacity .2s ease', pointerEvents: 'none',
+                opacity: active ? 1 : 0, transition: 'opacity .18s ease', pointerEvents: 'none',
               }}>{Math.round(prog * 100)}%</span>
               {/* sprint badge */}
               {nd.isSprint && !active && (
@@ -232,21 +236,22 @@ export function GoalConstellation({
 
             {/* label */}
             <span style={{
-              position: 'absolute', left: lx, top: ly, width: 158,
+              position: 'absolute', left: lx, top: ly, width: 162,
               transform: `translate(${tx}, ${ty})`,
               textAlign: align, pointerEvents: 'none',
               display: 'flex', flexDirection: 'column', gap: 3,
             }}>
               <span style={{
-                fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 14.5, lineHeight: 1.22,
-                color: active ? 'hsl(var(--text-strong))' : 'hsl(var(--text-body))',
-                letterSpacing: '-0.005em',
+                fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13.5, lineHeight: 1.28,
+                color: active ? col : 'hsl(var(--text-strong))',
+                letterSpacing: '-0.01em',
+                transition: 'color .2s',
               }}>{nd.title}</span>
               {nd.note && (
                 <span style={{
-                  fontFamily: 'var(--font-mono)', fontSize: 11.5, fontWeight: 500,
-                  color: col, letterSpacing: '0.01em',
-                  display: 'inline-flex', gap: 4,
+                  fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 500,
+                  color: nd.overdue ? '#dc2626' : col, letterSpacing: '0.01em',
+                  display: 'flex', gap: 4,
                   justifyContent: align === 'right' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start',
                 }}>
                   {nd.overdue ? '⚠ ' : ''}{nd.note}
@@ -254,7 +259,8 @@ export function GoalConstellation({
               )}
               {nd.done != null && nd.total != null && (
                 <span style={{
-                  fontFamily: 'var(--font-mono)', fontSize: 11, color: `hsl(var(--sphere-${nd.sphere}) / .7)`,
+                  fontFamily: 'var(--font-mono)', fontSize: 11,
+                  color: `hsl(var(--sphere-${nd.sphere}) / .65)`,
                   display: 'flex', gap: 4,
                   justifyContent: align === 'right' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start',
                 }}>

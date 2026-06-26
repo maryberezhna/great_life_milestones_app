@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useTransition } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { createSphere } from '@/app/actions/spheres';
 
 interface NavItem { href: string; icon: string; label: string; }
 interface Sphere {
@@ -27,9 +28,29 @@ export function AppShell({ nav, spheres, userEmail, children }: Props) {
   const pathname = usePathname();
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [addingSphere, setAddingSphere] = useState(false);
+  const [sphereName, setSphereName] = useState('');
+  const [, startT] = useTransition();
+  const sphereInputRef = useRef<HTMLInputElement>(null);
 
   // Close drawer on route change
   useEffect(() => { setDrawerOpen(false); }, [pathname]);
+
+  function openAddSphere() {
+    setAddingSphere(true);
+    setTimeout(() => sphereInputRef.current?.focus(), 40);
+  }
+
+  function submitSphere() {
+    const name = sphereName.trim();
+    if (!name) { setAddingSphere(false); return; }
+    startT(async () => {
+      await createSphere(name, '', '#8B5CF6');
+      setSphereName('');
+      setAddingSphere(false);
+      router.refresh();
+    });
+  }
 
   async function handleLogout() {
     const supabase = createClient();
@@ -81,14 +102,58 @@ export function AppShell({ nav, spheres, userEmail, children }: Props) {
         })}
       </div>
 
-      {/* Spheres label */}
+      {/* Spheres label + add button */}
       <div style={{
-        fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
-        textTransform: 'uppercase', letterSpacing: '0.06em',
-        color: 'hsl(var(--text-faint))', padding: '20px 12px 8px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '20px 12px 8px',
       }}>
-        Сфери
+        <span style={{
+          fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
+          textTransform: 'uppercase', letterSpacing: '0.06em',
+          color: 'hsl(var(--text-faint))',
+        }}>Сфери</span>
+        <button
+          onClick={openAddSphere}
+          title="Нова сфера"
+          style={{
+            width: 20, height: 20, borderRadius: 6, border: 'none',
+            background: 'transparent', cursor: 'pointer',
+            color: 'hsl(var(--text-faint))', fontSize: 16, lineHeight: 1,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 0,
+          }}
+          onMouseEnter={e => (e.currentTarget.style.color = 'hsl(var(--text-strong))')}
+          onMouseLeave={e => (e.currentTarget.style.color = 'hsl(var(--text-faint))')}
+        >+</button>
       </div>
+
+      {/* Inline new sphere input */}
+      {addingSphere && (
+        <div style={{ padding: '0 8px 6px', display: 'flex', gap: 4 }}>
+          <input
+            ref={sphereInputRef}
+            value={sphereName}
+            onChange={e => setSphereName(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') submitSphere();
+              if (e.key === 'Escape') { setAddingSphere(false); setSphereName(''); }
+            }}
+            placeholder="Назва сфери…"
+            style={{
+              flex: 1, padding: '6px 8px', borderRadius: 'var(--radius-sm)',
+              border: '1.5px solid hsl(var(--sphere-violet))',
+              background: 'hsl(var(--surface-base))',
+              fontFamily: 'var(--font-sans)', fontSize: 13, color: 'hsl(var(--text-strong))',
+              outline: 'none',
+            }}
+          />
+          <button onClick={submitSphere} style={{
+            padding: '6px 8px', borderRadius: 'var(--radius-sm)', border: 'none',
+            background: 'hsl(var(--sphere-violet))', color: '#fff',
+            fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 12, cursor: 'pointer',
+          }}>↵</button>
+        </div>
+      )}
 
       {/* Sphere links */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1, overflowY: 'auto' }}>

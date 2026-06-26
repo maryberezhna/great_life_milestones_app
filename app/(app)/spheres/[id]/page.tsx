@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getRequiredUserId } from '@/lib/auth';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { AddGoalInline, AddGoalButton } from './AddGoalInline';
 
 const HEX_TO_KEY: Record<string, string> = {
   '#8B5CF6': 'violet',
@@ -91,28 +92,14 @@ export default async function SpherePage({ params }: { params: Promise<{ id: str
             </div>
           </div>
 
-          {/* Add goal button */}
-          <button style={{
-            fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 600,
-            color: accent, background: soft,
-            padding: '9px 18px', borderRadius: 'var(--radius-md)',
-            border: 'none', cursor: 'pointer',
-          }}>
-            + Ціль
-          </button>
+          <AddGoalButton sphereId={id} accent={accent} soft={soft} />
         </div>
       </div>
 
       {/* Goals list */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '24px 32px', maxWidth: 720, display: 'flex', flexDirection: 'column', gap: 28 }}>
         {goals.length === 0 ? (
-          <div style={{
-            border: '2px dashed hsl(var(--border-subtle))', borderRadius: 'var(--radius-lg)',
-            padding: 48, textAlign: 'center', color: 'hsl(var(--text-muted))',
-            fontFamily: 'var(--font-sans)', fontSize: 14,
-          }}>
-            Додайте першу ціль для цієї сфери
-          </div>
+          <AddGoalInline sphereId={id} accent={accent} soft={soft} isEmpty />
         ) : (
           <>
             {active.length > 0 && (

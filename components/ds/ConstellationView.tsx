@@ -2,33 +2,38 @@
 
 import { useRef, useEffect, useState, useTransition } from 'react';
 import React from 'react';
-import { GoalConstellation, ConstellationGoal, ConstellationSphere } from './GoalConstellation';
+import { ConstellationGoal, ConstellationSphere } from './GoalConstellation';
+import { ObsidianGraph } from './ObsidianGraph';
 import { DecomposeModal } from './DecomposeModal';
 import { getGoalTasks, toggleTaskDone, type GoalTask } from '@/app/actions/tasks';
+import { setGoalStatus } from '@/app/actions/goals';
 import { CalendarSyncMenu } from './CalendarSyncMenu';
 import { EnergyCenterNode } from './EnergyCheckIn';
+import { IdeasPanel } from './IdeasPanel';
+import { SpheresModal } from './SpheresModal';
 
 interface Props {
   goals: ConstellationGoal[];
   spheres: ConstellationSphere[];
 }
 
-type View = 'all' | 'upcoming' | 'closed';
-const VIEWS: [View, string][] = [['all', 'Всі'], ['upcoming', 'Майбутні'], ['closed', 'Закриті']];
+type View = 'all' | 'paused' | 'upcoming' | 'closed';
+const VIEWS: [View, string][] = [['all', 'Активні'], ['paused', 'На паузі'], ['upcoming', 'Майбутні'], ['closed', 'Завершені']];
 
 function ViewTabs({ view, onView }: { view: View; onView: (v: View) => void }) {
   return (
-    <div style={{ display: 'inline-flex', gap: 3, background: 'hsl(var(--surface-sunken))', borderRadius: 'var(--radius-pill)', padding: 4, marginTop: 14 }}>
+    <div style={{ display: 'inline-flex', gap: 2, background: 'hsl(var(--surface-sunken))', borderRadius: 'var(--radius-pill)', padding: 3 }}>
       {VIEWS.map(([v, l]) => {
         const on = view === v;
         return (
-          <button key={v} onClick={() => onView(v)} style={{
-            padding: '7px 16px', borderRadius: 'var(--radius-pill)', border: 'none', cursor: 'pointer',
-            fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13.5,
+          <button key={v} onClick={() => onView(v)} data-no-brighten style={{
+            padding: '5px 13px', borderRadius: 'var(--radius-pill)', border: 'none', cursor: 'pointer',
+            fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 12.5,
             background: on ? 'hsl(var(--surface-card))' : 'transparent',
             color: on ? 'hsl(var(--text-strong))' : 'hsl(var(--text-muted))',
             boxShadow: on ? 'var(--shadow-xs)' : 'none',
-            transition: 'all .18s ease',
+            opacity: on ? 1 : 0.65,
+            transition: 'all .3s cubic-bezier(0.34,1.1,0.64,1)',
           }}>{l}</button>
         );
       })}
@@ -42,22 +47,26 @@ function Legend({ spheres, filter, onFilter }: {
   onFilter: (k: string | null) => void;
 }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'nowrap' }}>
       {spheres.map(s => {
         const on = filter === s.key;
         const dim = filter && !on;
         return (
-          <button key={s.key} onClick={() => onFilter(on ? null : s.key)} style={{
-            display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 14, fontWeight: 600,
-            cursor: 'pointer', padding: '6px 11px', borderRadius: 'var(--radius-pill)', border: 'none',
-            background: on ? `hsl(var(--sphere-${s.key}-soft))` : 'transparent',
-            color: on ? `hsl(var(--sphere-${s.key}))` : 'hsl(var(--text-body))',
-            opacity: dim ? 0.4 : 1,
-            transition: 'opacity .2s ease, background .2s ease, color .2s ease',
-          }}>
-            <span style={{ width: 8, height: 8, borderRadius: 999, background: `hsl(var(--sphere-${s.key}))`, boxShadow: `0 0 0 3px hsl(var(--sphere-${s.key}) / .14)`, flexShrink: 0 }} />
-            <span style={{ fontSize: 15 }}>{s.icon as string}</span>
-            {s.name}
+          <button key={s.key} onClick={() => onFilter(on ? null : s.key)} data-no-brighten
+            title={s.name}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 600,
+              cursor: 'pointer', padding: '4px 10px', borderRadius: 'var(--radius-pill)', border: 'none',
+              background: on ? `hsl(var(--sphere-${s.key}-soft))` : 'transparent',
+              color: on ? `hsl(var(--sphere-${s.key}))` : 'hsl(var(--text-body))',
+              opacity: dim ? 0.3 : 1,
+              transition: 'opacity .32s cubic-bezier(0.34,1.1,0.64,1), background .32s ease, color .32s ease, transform .32s cubic-bezier(0.34,1.3,0.64,1)',
+              transform: on ? 'scale(1.06)' : 'scale(1)',
+              whiteSpace: 'nowrap',
+            }}>
+            <span style={{ width: 7, height: 7, borderRadius: 999, background: `hsl(var(--sphere-${s.key}))`, boxShadow: `0 0 0 2px hsl(var(--sphere-${s.key}) / .18)`, flexShrink: 0 }} />
+            <span style={{ fontSize: 14 }}>{s.icon as string}</span>
+            <span style={{ fontSize: 12.5 }}>{s.name}</span>
           </button>
         );
       })}
@@ -65,12 +74,14 @@ function Legend({ spheres, filter, onFilter }: {
   );
 }
 
-function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange }: {
+function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange, onStatusChange, onDelete }: {
   goal: ConstellationGoal;
   spheres: ConstellationSphere[];
   onClose: () => void;
   onDecompose: () => void;
   onProgressChange: (goalId: string, done: number, total: number) => void;
+  onStatusChange: (goalId: string, status: 'active' | 'paused') => void;
+  onDelete: (goalId: string) => void;
 }) {
   const sp  = spheres.find(s => s.key === goal.sphere);
   const col  = `hsl(var(--sphere-${goal.sphere}))`;
@@ -78,6 +89,7 @@ function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange }: {
 
   const [tasks, setTasks] = useState<GoalTask[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [, startToggle] = useTransition();
 
   useEffect(() => {
@@ -121,7 +133,7 @@ function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange }: {
       background: 'hsl(var(--surface-card))',
       boxShadow: '-18px 0 48px hsl(28 16% 10% / .16)',
       zIndex: 19, display: 'flex', flexDirection: 'column',
-      animation: 'panelIn .42s cubic-bezier(.32,.9,.3,1)',
+      animation: 'panel-in .44s cubic-bezier(0.22, 1, 0.36, 1)',
     }}>
       {/* Sphere chip + close */}
       <div style={{ padding: '22px 26px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -217,6 +229,7 @@ function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange }: {
               key={t.id}
               role="button"
               tabIndex={0}
+              data-no-brighten
               onClick={() => handleToggle(t.id, !isDone)}
               onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') handleToggle(t.id, !isDone); }}
               style={{
@@ -224,7 +237,8 @@ function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange }: {
                 padding: '11px 10px', borderRadius: 'var(--radius-md)',
                 background: isDone ? soft : 'transparent', cursor: 'pointer',
                 textAlign: 'left', marginBottom: 4,
-                transition: 'background .18s ease',
+                transition: 'background .22s ease, opacity .22s ease',
+                opacity: isDone ? 0.72 : 1,
               }}
             >
               {/* Checkbox circle */}
@@ -291,7 +305,29 @@ function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange }: {
       </div>
 
       {/* CTA */}
-      <div style={{ padding: '14px 26px 26px', borderTop: '1px solid hsl(var(--border-subtle))' }}>
+      <div style={{ padding: '14px 26px 26px', borderTop: '1px solid hsl(var(--border-subtle))', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {/* Pause / resume */}
+        <button
+          onClick={() => {
+            if (!goal.id) return;
+            const next = goal.status === 'paused' ? 'active' : 'paused';
+            onStatusChange(goal.id, next);
+            setGoalStatus(goal.id, next).catch(() => onStatusChange(goal.id!, goal.status === 'paused' ? 'paused' : 'active'));
+          }}
+          style={{
+            width: '100%', padding: '11px 20px', borderRadius: 'var(--radius-md)',
+            border: `1.5px solid ${goal.status === 'paused' ? col : 'hsl(var(--border-subtle))'}`,
+            cursor: 'pointer',
+            background: goal.status === 'paused' ? soft : 'transparent',
+            color: goal.status === 'paused' ? col : 'hsl(var(--text-muted))',
+            fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 14,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            transition: 'all .18s ease',
+          }}
+        >
+          {goal.status === 'paused' ? '▶ Відновити ціль' : '⏸ Поставити на паузу'}
+        </button>
+
         <button onClick={onDecompose} style={{
           width: '100%', padding: '13px 20px', borderRadius: 'var(--radius-md)',
           border: 'none', cursor: 'pointer',
@@ -303,6 +339,58 @@ function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange }: {
           <span style={{ fontSize: 17, lineHeight: 1 }}>✦</span>
           {totalCount > 0 ? 'Додати ще кроки' : 'Розбити на кроки'}
         </button>
+
+        {/* Delete */}
+        {!deleteConfirm ? (
+          <button
+            onClick={() => setDeleteConfirm(true)}
+            data-no-brighten
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              fontFamily: 'var(--font-sans)', fontSize: 12.5, fontWeight: 600,
+              color: 'hsl(var(--text-faint))', padding: '4px 0',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+              transition: 'color .18s ease',
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#dc2626'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'hsl(var(--text-faint))'; }}
+          >
+            <svg width="12" height="12" viewBox="0 0 13 13" fill="none">
+              <path d="M1 3h11M4.5 3V2a1 1 0 011-1h2a1 1 0 011 1v1M5 5.5v4M8 5.5v4M2 3l.75 7a1 1 0 001 .75h5.5a1 1 0 001-.75L11 3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Видалити ціль
+          </button>
+        ) : (
+          <div style={{
+            padding: '12px 14px', borderRadius: 'var(--radius-md)',
+            background: 'hsl(0 60% 97%)', border: '1px solid hsl(0 60% 88%)',
+            animation: 'fade-up .2s ease',
+          }}>
+            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: '#991b1b', marginBottom: 10, fontWeight: 500, lineHeight: 1.4 }}>
+              Видалити «{goal.title}»? Усі кроки теж видаляться.
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setDeleteConfirm(false)} data-no-brighten style={{
+                flex: 1, padding: '7px', borderRadius: 'var(--radius-md)',
+                border: '1px solid hsl(var(--border-subtle))', background: '#fff',
+                color: 'hsl(var(--text-muted))', cursor: 'pointer',
+                fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13,
+              }}>Скасувати</button>
+              <button
+                onClick={() => {
+                  if (!goal.id) return;
+                  onDelete(goal.id);
+                  setGoalStatus(goal.id, 'archived').catch(() => {/* already removed from UI */});
+                }}
+                style={{
+                  flex: 1, padding: '7px', borderRadius: 'var(--radius-md)',
+                  border: 'none', background: '#dc2626', color: '#fff',
+                  cursor: 'pointer', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 13,
+                }}
+              >Видалити</button>
+            </div>
+          </div>
+        )}
       </div>
     </aside>
   );
@@ -311,12 +399,13 @@ function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange }: {
 export function ConstellationView({ goals: initialGoals, spheres }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [goals, setGoals] = useState<ConstellationGoal[]>(initialGoals);
-  const [dims, setDims] = useState({ w: 1180, h: 680 });
   const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
   const [decomposeGoal, setDecomposeGoal] = useState<ConstellationGoal | null>(null);
   const [filter, setFilter] = useState<string | null>(null);
   const [view, setView] = useState<View>('all');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [ideasOpen, setIdeasOpen] = useState(false);
+  const [spheresOpen, setSpheresOpen] = useState(false);
 
   function handleProgressChange(goalId: string, done: number, total: number) {
     setGoals(gs => gs.map(g =>
@@ -326,23 +415,47 @@ export function ConstellationView({ goals: initialGoals, spheres }: Props) {
     ));
   }
 
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const obs = new ResizeObserver(e => {
-      const { width, height } = e[0].contentRect;
-      setDims({ w: width, h: height });
+  function handleStatusChange(goalId: string, status: 'active' | 'paused') {
+    setGoals(gs => gs.map(g => g.id === goalId ? { ...g, status } : g));
+    setSelectedId(undefined);
+    // Automatically show the result: switch to the relevant tab
+    if (status === 'paused') setView('paused');
+    if (status === 'active') setView('all');
+  }
+
+  function handleGoalAdded(goal: ConstellationGoal) {
+    setGoals(gs => {
+      const exists = gs.find(g => g.id === goal.id);
+      if (exists) return gs;
+      // Replace tmp entry — preserve any status the user set while waiting for server
+      const tmpIdx = gs.findIndex(g => g.id?.startsWith('tmp-') && g.title === goal.title && g.sphere === goal.sphere);
+      if (tmpIdx >= 0) {
+        const next = [...gs];
+        next[tmpIdx] = { ...goal, status: gs[tmpIdx].status ?? goal.status };
+        return next;
+      }
+      return [...gs, goal];
     });
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
+  }
+
+  function handleDelete(goalId: string) {
+    setGoals(gs => gs.filter(g => g.id !== goalId));
+    setSelectedId(undefined);
+  }
+
+  function handleDecomposeFromPanel(goal: ConstellationGoal) {
+    setDecomposeGoal(goal);
+    setIdeasOpen(false);
+  }
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setSelectedId(undefined); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setSelectedId(undefined); setIdeasOpen(false); setSpheresOpen(false); }
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
@@ -350,9 +463,10 @@ export function ConstellationView({ goals: initialGoals, spheres }: Props) {
   // Filter goals by sphere and view
   const shown = goals.filter(g => {
     if (filter && g.sphere !== filter) return false;
-    if (view === 'closed') return g.progress != null && g.progress >= 1;
-    if (view === 'upcoming') return !g.overdue;
-    return true;
+    if (view === 'paused')   return g.status === 'paused';
+    if (view === 'closed')   return g.progress != null && g.progress >= 1;
+    if (view === 'upcoming') return g.status !== 'paused' && !g.overdue && (g.progress ?? 0) < 1;
+    return g.status !== 'paused'; // 'all' = active only
   });
 
   const openGoal = selectedId ? goals.find(g => g.id === selectedId) : null;
@@ -375,21 +489,62 @@ export function ConstellationView({ goals: initialGoals, spheres }: Props) {
       {/* Header */}
       <header style={{
         position: 'relative',
-        display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24,
-        padding: '26px 40px 22px', flexShrink: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20,
+        padding: '14px 32px', flexShrink: 0,
       }}>
-        <div>
-          <div style={{ font: 'var(--font-caption)', color: 'hsl(var(--text-muted))', fontWeight: 600, letterSpacing: '0.02em', textTransform: 'capitalize' }}>
-            {today}
-          </div>
-          <h1 style={{ font: 'var(--font-h1)', color: 'hsl(var(--text-strong))', letterSpacing: '-0.03em', marginTop: 3 }}>
+        {/* Left: title + tabs inline */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
+          <h1 style={{
+            fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 20,
+            letterSpacing: '-0.025em', color: 'hsl(var(--text-strong))',
+            margin: 0, flexShrink: 0,
+          }}>
             Мій простір
           </h1>
+          <div style={{ width: 1, height: 18, background: 'hsl(var(--border-subtle))', flexShrink: 0 }} />
           <ViewTabs view={view} onView={setView} />
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, paddingTop: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
           <Legend spheres={spheres} filter={filter} onFilter={setFilter} />
+
+          {/* Spheres settings */}
+          <button
+            onClick={() => { setSpheresOpen(o => !o); setIdeasOpen(false); setSelectedId(undefined); }}
+            data-no-brighten
+            title="Редагувати сфери"
+            style={{
+              width: 30, height: 30, borderRadius: 999, border: `1px solid ${spheresOpen ? 'hsl(var(--sphere-violet))' : 'hsl(var(--border-subtle))'}`,
+              background: spheresOpen ? 'hsl(var(--sphere-violet-soft))' : 'hsl(var(--surface-card))',
+              color: spheresOpen ? 'hsl(var(--sphere-violet))' : 'hsl(var(--text-muted))',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'all .22s ease', flexShrink: 0,
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M7 9a2 2 0 100-4 2 2 0 000 4z" stroke="currentColor" strokeWidth="1.3"/>
+              <path d="M11.3 5.7l.7-1.2-1.4-1.4-1.2.7A4 4 0 008 3.3L7.7 2h-2L5.3 3.3A4 4 0 004 4.2l-1.2-.7L1.4 4.9l.7 1.2A4 4 0 002 7c0 .32.04.63.1.9l-.7 1.2 1.4 1.4 1.2-.7c.37.27.77.49 1.2.63L5.7 12h2l.3-1.3c.43-.14.83-.36 1.2-.63l1.2.7 1.4-1.4-.7-1.2c.07-.27.1-.58.1-.9 0-.32-.03-.63-.1-.9z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+            </svg>
+          </button>
+
+          {/* Add goal button */}
+          <button
+            onClick={() => { setIdeasOpen(o => !o); setSelectedId(undefined); }}
+            data-no-brighten
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '6px 14px', borderRadius: 'var(--radius-pill)',
+              border: `1.5px solid ${ideasOpen ? 'hsl(var(--sphere-violet))' : 'hsl(var(--border-subtle))'}`,
+              background: ideasOpen ? 'hsl(var(--sphere-violet-soft))' : 'hsl(var(--surface-card))',
+              color: ideasOpen ? 'hsl(var(--sphere-violet))' : 'hsl(var(--text-body))',
+              cursor: 'pointer', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13,
+              transition: 'all .25s cubic-bezier(0.34,1.1,0.64,1)',
+              transform: ideasOpen ? 'scale(1.04)' : 'scale(1)',
+            }}
+          >
+            <span style={{ fontSize: 14, fontWeight: 800 }}>+</span>
+            Додати ціль
+          </button>
 
           {/* Theme toggle */}
           <button onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
@@ -404,17 +559,15 @@ export function ConstellationView({ goals: initialGoals, spheres }: Props) {
         </div>
       </header>
 
-      {/* Constellation */}
-      <div ref={containerRef} style={{ position: 'relative', flex: 1, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <GoalConstellation
+      {/* Graph */}
+      <div ref={containerRef} style={{ position: 'relative', flex: 1, overflow: 'hidden' }}>
+        <ObsidianGraph
           key={view + ':' + (filter ?? 'all')}
           goals={shown}
           spheres={spheres}
-          width={dims.w}
-          height={dims.h}
           selectedId={selectedId}
           onSelect={g => setSelectedId(g?.id ?? undefined)}
-          centerNode={<EnergyCenterNode />}
+          style={{ width: '100%', height: '100%' }}
         />
 
         {/* Scrim */}
@@ -435,6 +588,46 @@ export function ConstellationView({ goals: initialGoals, spheres }: Props) {
             onClose={() => setSelectedId(undefined)}
             onDecompose={() => { setDecomposeGoal(openGoal); setSelectedId(undefined); }}
             onProgressChange={handleProgressChange}
+            onStatusChange={handleStatusChange}
+            onDelete={handleDelete}
+          />
+        )}
+
+        {/* Spheres scrim */}
+        {spheresOpen && (
+          <div onClick={() => setSpheresOpen(false)} style={{
+            position: 'absolute', inset: 0,
+            background: 'hsl(28 16% 10% / .10)',
+            backdropFilter: 'blur(1px)',
+            zIndex: 21,
+          }} />
+        )}
+
+        {/* Spheres panel */}
+        {spheresOpen && (
+          <SpheresModal
+            spheres={spheres}
+            onClose={() => setSpheresOpen(false)}
+          />
+        )}
+
+        {/* Ideas scrim */}
+        {ideasOpen && (
+          <div onClick={() => setIdeasOpen(false)} style={{
+            position: 'absolute', inset: 0,
+            background: 'hsl(28 16% 10% / .10)',
+            backdropFilter: 'blur(1px)',
+            zIndex: 21,
+          }} />
+        )}
+
+        {/* Add goal panel */}
+        {ideasOpen && (
+          <IdeasPanel
+            spheres={spheres}
+            onClose={() => setIdeasOpen(false)}
+            onGoalAdded={handleGoalAdded}
+            onDecompose={handleDecomposeFromPanel}
           />
         )}
       </div>

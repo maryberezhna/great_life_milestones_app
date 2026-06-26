@@ -9,6 +9,9 @@ const HEX_TO_KEY: Record<string, string> = {
   '#10B981': 'sage',
   '#EC4899': 'rose',
   '#3B82F6': 'blue',
+  '#14B8A6': 'teal',
+  '#F97316': 'clay',
+  '#6366F1': 'indigo',
 };
 
 function complexityToWeight(c: string | null): number {
@@ -37,9 +40,9 @@ export default async function DashboardPage() {
       .eq('archived', false)
       .order('sort_order'),
     supabase.from('plan_goals')
-      .select('id, title, sphere_id, target_date, complexity')
+      .select('id, title, sphere_id, target_date, complexity, status')
       .eq('user_id', userId)
-      .eq('status', 'active'),
+      .in('status', ['active', 'paused']),
     supabase.from('plan_tasks')
       .select('goal_id, status')
       .eq('user_id', userId)
@@ -47,7 +50,7 @@ export default async function DashboardPage() {
   ]);
 
   const spheresData = (spheresRaw ?? []) as { id: string; name: string; color: string; icon: string }[];
-  const goalsData  = (goalsRaw  ?? []) as { id: string; title: string; sphere_id: string; target_date: string | null; complexity: string | null }[];
+  const goalsData  = (goalsRaw  ?? []) as { id: string; title: string; sphere_id: string; target_date: string | null; complexity: string | null; status: string }[];
   const tasksData  = (tasksRaw  ?? []) as { goal_id: string | null; status: string }[];
 
   // compute progress per goal: done / total (excluding irrelevant)
@@ -64,8 +67,10 @@ export default async function DashboardPage() {
   const sphereById = new Map(spheresData.map(s => [s.id, s]));
 
   const spheres: ConstellationSphere[] = spheresData.map(s => ({
+    id: s.id,
     key: HEX_TO_KEY[s.color] ?? 'violet',
     name: s.name,
+    color: s.color,
     icon: s.icon ?? '',
   }));
 
@@ -84,6 +89,7 @@ export default async function DashboardPage() {
       done: td.done,
       total: td.total,
       isSprint: false,
+      status: g.status as 'active' | 'paused',
     };
   });
 

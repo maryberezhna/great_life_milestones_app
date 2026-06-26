@@ -129,7 +129,8 @@ export function DecomposeModal({ goal, spheres, onClose }: Props) {
         const steps = await decomposeWithAI(goal.title ?? '', sp?.name ?? '', today);
         setTasks(steps.map(s => mkDraft(s.specific, s.deadline)));
         setStep(2);
-      } catch {
+      } catch (e) {
+        console.error('[DecomposeModal] AI error:', e);
         setAiError('Не вдалося згенерувати кроки. Спробуй ще або сплануй сам.');
       }
     });
@@ -173,12 +174,16 @@ export function DecomposeModal({ goal, spheres, onClose }: Props) {
         .ds-ai-btn:hover:not(:disabled) { opacity:.88; }
         .ds-pill-btn { transition: background .15s, border-color .15s, color .15s; }
         .ds-pill-btn:hover { filter: brightness(.96); }
-        .ds-add-btn:hover { background: hsl(var(--surface-sunken)) !important; }
         .ds-input:focus { border-color: ${col} !important; box-shadow: 0 0 0 3px hsl(var(--sphere-${goal.sphere}) / .14); }
-        .ds-inline-ta::placeholder { color: hsl(var(--text-faint)); }
+        .ds-inline-ta::placeholder { color: #C7C7CC; }
         .ds-inline-ta:focus { outline: none; }
-        .ds-date-input::-webkit-calendar-picker-indicator { opacity: 0.4; cursor: pointer; }
-        .ds-date-input:hover::-webkit-calendar-picker-indicator { opacity: 0.8; }
+        .ds-date-input::-webkit-calendar-picker-indicator { opacity: 0; width: 0; }
+        .ds-step-row .ds-delete { opacity: 0; transition: opacity .15s; }
+        .ds-step-row:hover .ds-delete { opacity: 1; }
+        .ds-toggle-btn { transition: color .12s; }
+        .ds-toggle-btn:hover { opacity: .8; }
+        .ds-recur-btn { transition: background .12s, color .12s; }
+        .ds-recur-btn:hover { filter: brightness(.96); }
       `}</style>
 
       {/* Backdrop */}
@@ -360,42 +365,52 @@ export function DecomposeModal({ goal, spheres, onClose }: Props) {
           {/* ── STEP 2 ── */}
           {step === 2 && (
             <div style={{ paddingBottom: 28 }}>
+              {/* Title + subtitle */}
               <h2 style={{
-                fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 20,
-                color: 'hsl(var(--text-strong))', letterSpacing: '-0.02em', lineHeight: 1.2, marginBottom: 4,
+                fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 22,
+                color: 'hsl(var(--text-strong))', letterSpacing: '-0.025em', lineHeight: 1.2, marginBottom: 4,
               }}>
                 {goal.title}
               </h2>
-              <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'hsl(var(--text-muted))', marginBottom: 22 }}>
-                Перевір або відредагуй кроки — кожен із дедлайном.
+              <p style={{
+                fontFamily: 'var(--font-sans)', fontSize: 14, color: '#8E8E93', marginBottom: 20,
+                display: 'flex', alignItems: 'center', gap: 6,
+              }}>
+                {valid.length} {valid.length === 1 ? 'крок' : valid.length < 5 ? 'кроки' : 'кроків'} додано
               </p>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {/* Apple-style grouped list */}
+              <div style={{
+                background: 'hsl(var(--surface-card))',
+                borderRadius: 14,
+                overflow: 'hidden',
+                boxShadow: '0 1px 0 rgba(0,0,0,.06), 0 2px 8px rgba(0,0,0,.04)',
+              }}>
                 {tasks.map((t, idx) => (
-                  <div key={t.id} style={{
-                    display: 'flex', gap: 12,
-                    padding: '14px 14px 14px 16px',
-                    borderRadius: 'var(--radius-xl)',
-                    background: 'hsl(var(--surface-sunken))',
-                    border: '1.5px solid hsl(var(--border-subtle))',
-                    transition: 'border-color .15s',
+                  <div key={t.id} className="ds-step-row" style={{
+                    display: 'flex', gap: 0,
+                    borderBottom: idx < tasks.length - 1 ? '1px solid rgba(60,60,67,.1)' : 'none',
                   }}>
-                    {/* Step number */}
-                    <div style={{ flexShrink: 0, paddingTop: 2 }}>
+                    {/* Left: number */}
+                    <div style={{
+                      flexShrink: 0, width: 52,
+                      display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+                      paddingTop: 18,
+                    }}>
                       <span style={{
-                        width: 24, height: 24, borderRadius: 999, flexShrink: 0,
-                        background: t.specific.trim() ? col : 'hsl(var(--surface-base, white))',
-                        border: `1.5px solid ${t.specific.trim() ? col : 'hsl(var(--border-subtle))'}`,
-                        color: t.specific.trim() ? '#fff' : 'hsl(var(--text-faint))',
-                        fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 11,
+                        width: 26, height: 26, borderRadius: 999, flexShrink: 0,
+                        background: t.specific.trim() ? col : `${col}22`,
+                        color: t.specific.trim() ? '#fff' : col,
+                        fontFamily: '-apple-system, var(--font-sans)', fontWeight: 700, fontSize: 12,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        transition: 'all .2s',
+                        transition: 'all .25s cubic-bezier(.32,.9,.3,1)',
+                        letterSpacing: '-0.01em',
                       }}>{idx + 1}</span>
                     </div>
 
-                    {/* Content */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      {/* Borderless textarea */}
+                    {/* Center: content */}
+                    <div style={{ flex: 1, minWidth: 0, paddingTop: 16, paddingBottom: 14, paddingRight: 4 }}>
+                      {/* Task text */}
                       <AutoTextarea
                         className="ds-inline-ta"
                         value={t.specific}
@@ -404,95 +419,105 @@ export function DecomposeModal({ goal, spheres, onClose }: Props) {
                         style={{
                           width: '100%', border: 'none', outline: 'none',
                           background: 'transparent', padding: 0,
-                          fontFamily: 'var(--font-sans)', fontSize: 15, fontWeight: 500,
-                          color: 'hsl(var(--text-strong))', lineHeight: 1.5,
+                          fontFamily: '-apple-system, var(--font-sans)',
+                          fontSize: 16, fontWeight: 500,
+                          color: 'hsl(var(--text-strong))', lineHeight: 1.45,
                         }}
                       />
 
-                      {/* Compact meta row */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 9, flexWrap: 'wrap' }}>
-                        {/* Date */}
-                        <input
-                          className="ds-date-input"
-                          type="date"
-                          value={t.deadline}
-                          onChange={e => update(t.id, { deadline: e.target.value })}
-                          min={new Date().toISOString().slice(0, 10)}
-                          style={{
-                            border: 'none', outline: 'none', background: 'transparent', padding: 0,
-                            fontFamily: 'var(--font-mono)', fontSize: 12.5, cursor: 'pointer',
-                            color: t.deadline ? col : 'hsl(var(--text-faint))',
-                          }}
-                        />
+                      {/* Meta row */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
+                        {/* Date — tappable, opens native picker */}
+                        <label style={{ position: 'relative', cursor: 'pointer' }}>
+                          <span style={{
+                            fontFamily: '-apple-system, var(--font-mono)', fontSize: 13,
+                            fontWeight: 500, letterSpacing: '0.01em',
+                            color: t.deadline ? col : '#C7C7CC',
+                          }}>
+                            {t.deadline
+                              ? new Date(t.deadline + 'T12:00').toLocaleDateString('uk-UA', { day: 'numeric', month: 'short', year: 'numeric' })
+                              : '+ Дедлайн'}
+                          </span>
+                          <input
+                            className="ds-date-input"
+                            type="date"
+                            value={t.deadline}
+                            onChange={e => update(t.id, { deadline: e.target.value })}
+                            min={new Date().toISOString().slice(0, 10)}
+                            style={{
+                              position: 'absolute', inset: 0, opacity: 0,
+                              width: '100%', cursor: 'pointer',
+                            }}
+                          />
+                        </label>
 
-                        <span style={{ color: 'hsl(var(--border-subtle))', lineHeight: 1 }}>·</span>
+                        {t.deadline && <>
+                          <span style={{ color: 'rgba(60,60,67,.18)', fontSize: 14 }}>|</span>
 
-                        {/* Reminder toggle */}
-                        <button
-                          className="ds-pill-btn"
-                          onClick={() => update(t.id, { reminder: !t.reminder })}
-                          style={{
-                            display: 'inline-flex', alignItems: 'center', gap: 4,
-                            padding: '3px 9px', borderRadius: 'var(--radius-pill)',
-                            border: `1.5px solid ${t.reminder || t.recurrence !== 'none' ? col : 'hsl(var(--border-subtle))'}`,
-                            background: t.reminder || t.recurrence !== 'none' ? soft : 'transparent',
-                            color: t.reminder || t.recurrence !== 'none' ? col : 'hsl(var(--text-muted))',
-                            cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600,
-                          }}
-                        >
-                          🔔 Нагадування
-                        </button>
+                          {/* Reminder toggle */}
+                          <button
+                            className="ds-toggle-btn"
+                            onClick={() => update(t.id, { reminder: !t.reminder })}
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 4,
+                              background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                              fontFamily: '-apple-system, var(--font-sans)', fontSize: 13, fontWeight: 500,
+                              color: t.reminder ? col : '#8E8E93',
+                            }}
+                          >
+                            🔔
+                          </button>
 
-                        {/* Calendar toggle */}
-                        <button
-                          className="ds-pill-btn"
-                          onClick={() => update(t.id, { calendar: !t.calendar, recurrence: 'none' })}
-                          style={{
-                            display: 'inline-flex', alignItems: 'center', gap: 4,
-                            padding: '3px 9px', borderRadius: 'var(--radius-pill)',
-                            border: `1.5px solid ${t.calendar ? col : 'hsl(var(--border-subtle))'}`,
-                            background: t.calendar ? soft : 'transparent',
-                            color: t.calendar ? col : 'hsl(var(--text-muted))',
-                            cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600,
-                          }}
-                        >
-                          📅 Час у календарі
-                          {t.calendar && t.deadline && (
-                            <span style={{ opacity: .7, fontWeight: 400 }}>{t.calendarTime}</span>
-                          )}
-                        </button>
+                          {/* Calendar toggle */}
+                          <button
+                            className="ds-toggle-btn"
+                            onClick={() => update(t.id, { calendar: !t.calendar, recurrence: 'none' })}
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 4,
+                              background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                              fontFamily: '-apple-system, var(--font-sans)', fontSize: 13, fontWeight: 500,
+                              color: t.calendar ? col : '#8E8E93',
+                            }}
+                          >
+                            📅 {t.calendar ? 'Додано' : 'Календар'}
+                          </button>
+                        </>}
                       </div>
 
-                      {/* Calendar time + recurrence — inline, only when calendar on */}
-                      {t.calendar && (
+                      {/* Calendar expanded: time + recurrence */}
+                      {t.calendar && t.deadline && (
                         <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                          {t.deadline && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'hsl(var(--text-muted))' }}>Час:</span>
-                              <input
-                                className="ds-input"
-                                type="time"
-                                value={t.calendarTime}
-                                onChange={e => update(t.id, { calendarTime: e.target.value })}
-                                style={{ ...INPUT, width: 'auto', fontSize: 12, padding: '4px 8px' }}
-                              />
-                            </div>
-                          )}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'hsl(var(--text-muted))' }}>Повторення:</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ fontFamily: '-apple-system, var(--font-sans)', fontSize: 13, color: '#8E8E93' }}>Час:</span>
+                            <input
+                              type="time"
+                              value={t.calendarTime}
+                              onChange={e => update(t.id, { calendarTime: e.target.value })}
+                              style={{
+                                fontFamily: '-apple-system, var(--font-mono)', fontSize: 13,
+                                border: `1px solid ${col}44`, borderRadius: 8,
+                                padding: '3px 8px', background: soft, color: col,
+                                outline: 'none', cursor: 'pointer',
+                              }}
+                            />
+                          </div>
+                          {/* Recurrence — segmented control style */}
+                          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                             {RECURRENCE_OPTIONS.map(opt => {
                               const on = t.recurrence === opt.value;
                               return (
                                 <button
                                   key={opt.value}
-                                  className="ds-pill-btn"
+                                  className="ds-recur-btn"
                                   onClick={() => update(t.id, { recurrence: opt.value, reminder: opt.value !== 'none' ? true : t.reminder })}
                                   style={{
-                                    padding: '3px 9px', borderRadius: 'var(--radius-pill)',
-                                    border: `1.5px solid ${on ? col : 'hsl(var(--border-subtle))'}`,
+                                    padding: '4px 11px', borderRadius: 8,
+                                    border: `1px solid ${on ? col : 'rgba(60,60,67,.18)'}`,
                                     background: on ? col : 'transparent',
-                                    color: on ? '#fff' : 'hsl(var(--text-body))',
-                                    cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600,
+                                    color: on ? '#fff' : '#3C3C43',
+                                    cursor: 'pointer',
+                                    fontFamily: '-apple-system, var(--font-sans)',
+                                    fontSize: 12, fontWeight: 500,
                                   }}
                                 >
                                   {opt.label}
@@ -504,55 +529,53 @@ export function DecomposeModal({ goal, spheres, onClose }: Props) {
                       )}
                     </div>
 
-                    {/* Delete — always visible, disabled only for single task */}
-                    <button
-                      onClick={() => tasks.length > 1 && setTasks(ts => ts.filter(x => x.id !== t.id))}
-                      disabled={tasks.length === 1}
-                      title={tasks.length === 1 ? 'Потрібен мінімум 1 крок' : 'Видалити крок'}
-                      style={{
-                        flexShrink: 0, background: 'none', border: 'none',
-                        cursor: tasks.length > 1 ? 'pointer' : 'default',
-                        color: tasks.length > 1 ? 'hsl(var(--text-faint))' : 'hsl(var(--border-subtle))',
-                        fontSize: 14, lineHeight: 1,
-                        paddingTop: 3, alignSelf: 'flex-start',
-                        transition: 'color .15s',
-                      }}
-                      onMouseEnter={e => { if (tasks.length > 1) (e.currentTarget as HTMLButtonElement).style.color = 'hsl(var(--overdue, #dc2626))'; }}
-                      onMouseLeave={e => { if (tasks.length > 1) (e.currentTarget as HTMLButtonElement).style.color = 'hsl(var(--text-faint))'; }}
-                    >🗑</button>
+                    {/* Right: delete */}
+                    <div style={{ flexShrink: 0, width: 44, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: 18 }}>
+                      <button
+                        className="ds-delete"
+                        onClick={() => tasks.length > 1 && setTasks(ts => ts.filter(x => x.id !== t.id))}
+                        disabled={tasks.length === 1}
+                        title="Видалити"
+                        style={{
+                          background: 'none', border: 'none',
+                          cursor: tasks.length > 1 ? 'pointer' : 'default',
+                          color: '#FF3B30', fontSize: 13, lineHeight: 1,
+                          width: 26, height: 26, borderRadius: 999,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                          <path d="M1 3.5h12M4.5 3.5V2.5a1 1 0 011-1h3a1 1 0 011 1v1M5.5 6.5v4M8.5 6.5v4M2.5 3.5l.75 7.5a1 1 0 001 .75h5.5a1 1 0 001-.75l.75-7.5" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 ))}
-              </div>
 
-              {tasks.length < 5 && (
-                <button
-                  className="ds-add-btn"
-                  onClick={() => setTasks(ts => [...ts, mkDraft()])}
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                    marginTop: 8, padding: '12px',
-                    width: '100%',
-                    background: 'none',
-                    border: '1.5px dashed hsl(var(--border-subtle))',
-                    borderRadius: 'var(--radius-xl)',
-                    cursor: 'pointer',
-                    fontFamily: 'var(--font-sans)', fontSize: 13.5, fontWeight: 600,
-                    color: 'hsl(var(--text-faint))',
-                    transition: 'border-color .15s, color .15s, background .15s',
-                  }}
-                  onMouseEnter={e => {
-                    const b = e.currentTarget as HTMLButtonElement;
-                    b.style.borderColor = col; b.style.color = col; b.style.background = soft;
-                  }}
-                  onMouseLeave={e => {
-                    const b = e.currentTarget as HTMLButtonElement;
-                    b.style.borderColor = 'hsl(var(--border-subtle))'; b.style.color = 'hsl(var(--text-faint))'; b.style.background = 'none';
-                  }}
-                >
-                  <span style={{ fontSize: 17, lineHeight: 1 }}>+</span>
-                  Додати крок
-                </button>
-              )}
+                {/* Add row — inside the group */}
+                {tasks.length < 5 && (
+                  <button
+                    onClick={() => setTasks(ts => [...ts, mkDraft()])}
+                    style={{
+                      width: '100%', padding: '15px 16px 15px 52px',
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      fontFamily: '-apple-system, var(--font-sans)', fontSize: 15, fontWeight: 400,
+                      color: col,
+                      textAlign: 'left',
+                      borderTop: tasks.length > 0 ? '1px solid rgba(60,60,67,.1)' : 'none',
+                    }}
+                  >
+                    <span style={{
+                      width: 26, height: 26, borderRadius: 999,
+                      background: `${col}18`, color: col,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 18, lineHeight: 1, fontWeight: 400, flexShrink: 0,
+                    }}>+</span>
+                    Новий крок
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
