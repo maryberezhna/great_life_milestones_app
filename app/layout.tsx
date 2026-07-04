@@ -17,7 +17,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Planning · Sphere',
+  title: 'Sphere',
   description: 'Персональний операційний центр цілей',
 };
 
