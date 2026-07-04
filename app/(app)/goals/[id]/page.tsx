@@ -7,6 +7,7 @@ import { GoalTaskItem } from '@/components/ds/GoalTaskItem';
 import { ProgressBar } from '@/components/ds/ProgressBar';
 import { GoalStatusToggle } from '@/components/ds/GoalStatusToggle';
 import { SprintToggle } from '@/components/ds/SprintToggle';
+import { DependsOnPicker } from '@/components/ds/DependsOnPicker';
 
 const HEX_TO_KEY: Record<string, string> = {
   '#8B5CF6': 'violet',
@@ -63,10 +64,10 @@ export default async function GoalPage({ params }: { params: Promise<{ id: strin
   const userId = await getRequiredUserId();
   const supabase = await createClient();
 
-  const [{ data: goal }, { data: tasksRaw }] = await Promise.all([
+  const [{ data: goal }, { data: tasksRaw }, { data: allGoalsRaw }] = await Promise.all([
     supabase
       .from('plan_goals')
-      .select('id, title, description, status, is_sprint, target_date, spheres(id, name, color, icon)')
+      .select('id, title, description, status, is_sprint, target_date, depends_on_id, spheres(id, name, color, icon)')
       .eq('id', id)
       .eq('user_id', userId)
       .single(),
@@ -74,6 +75,12 @@ export default async function GoalPage({ params }: { params: Promise<{ id: strin
       .from('plan_tasks')
       .select('id, specific, action, result, deadline, status, calendar_event_id, updated_at')
       .eq('goal_id', id)
+      .order('created_at'),
+    supabase
+      .from('plan_goals')
+      .select('id, title')
+      .eq('user_id', userId)
+      .in('status', ['active', 'paused'])
       .order('created_at'),
   ]);
 
@@ -137,6 +144,13 @@ export default async function GoalPage({ params }: { params: Promise<{ id: strin
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
           <GoalStatusToggle goalId={id} currentStatus={g.status} />
           <SprintToggle goalId={id} isSprint={g.is_sprint ?? false} accent={accent} soft={soft} />
+          <DependsOnPicker
+            goalId={id}
+            dependsOnId={(g as any).depends_on_id ?? null}
+            allGoals={(allGoalsRaw ?? []) as { id: string; title: string }[]}
+            accent={accent}
+            soft={soft}
+          />
           {isQuickWin && (
             <span style={{
               display: 'inline-flex', alignItems: 'center', gap: 4,

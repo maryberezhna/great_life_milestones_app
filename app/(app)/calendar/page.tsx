@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { getRequiredUserId } from '@/lib/auth';
 import { CalendarSyncMenu } from '@/components/ds/CalendarSyncMenu';
@@ -23,16 +24,27 @@ function getCalendarDays(year: number, month: number) {
   return days;
 }
 
-export default async function CalendarPage() {
+export default async function CalendarPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ year?: string; month?: string }>;
+}) {
   const userId = await getRequiredUserId();
   const supabase = await createClient();
+  const sp = await searchParams;
 
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  const today = now.getDate();
+  const year  = sp.year  ? parseInt(sp.year)  : now.getFullYear();
+  const month = sp.month ? parseInt(sp.month) : now.getMonth();
+  const today = year === now.getFullYear() && month === now.getMonth() ? now.getDate() : -1;
 
-  const monthLabel = now.toLocaleDateString('uk-UA', { month: 'long', year: 'numeric' });
+  const monthLabel = new Date(year, month, 1).toLocaleDateString('uk-UA', { month: 'long', year: 'numeric' });
+
+  // prev / next month hrefs
+  const prevDate = new Date(year, month - 1, 1);
+  const nextDate = new Date(year, month + 1, 1);
+  const prevHref = `/calendar?year=${prevDate.getFullYear()}&month=${prevDate.getMonth()}`;
+  const nextHref = `/calendar?year=${nextDate.getFullYear()}&month=${nextDate.getMonth()}`;
   const days = getCalendarDays(year, month);
 
   // Fetch tasks with deadlines in this month
@@ -72,13 +84,29 @@ export default async function CalendarPage() {
             }}>
               Планування
             </div>
-            <h1 style={{
-              fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 28,
-              letterSpacing: '-0.02em', color: 'hsl(var(--text-strong))', marginTop: 2,
-              textTransform: 'capitalize',
-            }}>
-              {monthLabel}
-            </h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 2 }}>
+              <Link href={prevHref} style={{
+                width: 32, height: 32, borderRadius: 8, display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+                background: 'hsl(var(--surface-card))',
+                border: '1px solid hsl(var(--border-subtle))',
+                color: 'hsl(var(--text-muted))', textDecoration: 'none', fontSize: 16,
+              }}>‹</Link>
+              <h1 style={{
+                fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 28,
+                letterSpacing: '-0.02em', color: 'hsl(var(--text-strong))',
+                textTransform: 'capitalize', minWidth: 220,
+              }}>
+                {monthLabel}
+              </h1>
+              <Link href={nextHref} style={{
+                width: 32, height: 32, borderRadius: 8, display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+                background: 'hsl(var(--surface-card))',
+                border: '1px solid hsl(var(--border-subtle))',
+                color: 'hsl(var(--text-muted))', textDecoration: 'none', fontSize: 16,
+              }}>›</Link>
+            </div>
           </div>
           {(tasks?.length ?? 0) > 0 && (() => {
             const icsEvents: IcsEvent[] = (tasks ?? [])

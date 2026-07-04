@@ -18,11 +18,29 @@ const RECURRENCE_OPTIONS: { value: Recurrence; label: string; rrule: string }[] 
 interface TaskDraft {
   id: string;
   specific: string;
+  link: string;
   deadline: string;
   reminder: boolean;
   calendar: boolean;
   calendarTime: string;
   recurrence: Recurrence;
+}
+
+const URL_RE = /https?:\/\/[^\s]+/g;
+
+function extractLink(text: string): { specific: string; link: string } {
+  const urls = text.match(URL_RE);
+  if (!urls?.length) return { specific: text, link: '' };
+  const link = urls[0];
+  const specific = text.replace(URL_RE, '').replace(/\s{2,}/g, ' ').trim();
+  return { specific, link };
+}
+
+function linkLabel(url: string) {
+  try {
+    const u = new URL(url);
+    return u.hostname.replace(/^www\./, '') + (u.pathname !== '/' ? '/…' : '');
+  } catch { return url.slice(0, 40) + '…'; }
 }
 
 type Step = 1 | 2 | 3;
@@ -34,7 +52,8 @@ interface Props {
 }
 
 function mkDraft(specific = '', deadline = ''): TaskDraft {
-  return { id: Math.random().toString(36).slice(2), specific, deadline, reminder: false, calendar: false, calendarTime: '09:00', recurrence: 'weekly' };
+  const extracted = extractLink(specific);
+  return { id: Math.random().toString(36).slice(2), ...extracted, deadline, reminder: false, calendar: false, calendarTime: '09:00', recurrence: 'weekly' };
 }
 
 function AutoTextarea({ value, onChange, placeholder, style, className }: {
@@ -139,7 +158,7 @@ export function DecomposeModal({ goal, spheres, onClose }: Props) {
   function handleSave() {
     startSaveTransition(async () => {
       await createTasks(goal.id ?? '', valid.map(t => ({
-        specific: t.specific.trim(),
+        specific: (t.specific.trim() + (t.link ? ' ' + t.link : '')).trim(),
         deadline: t.deadline || undefined,
         recurrence: t.recurrence,
       })));
@@ -414,7 +433,11 @@ export function DecomposeModal({ goal, spheres, onClose }: Props) {
                       <AutoTextarea
                         className="ds-inline-ta"
                         value={t.specific}
-                        onChange={e => update(t.id, { specific: e.target.value })}
+                        onChange={e => {
+                          const val = e.target.value;
+                          const extracted = extractLink(val);
+                          update(t.id, extracted);
+                        }}
                         placeholder="Що конкретно зробити?"
                         style={{
                           width: '100%', border: 'none', outline: 'none',
@@ -425,31 +448,71 @@ export function DecomposeModal({ goal, spheres, onClose }: Props) {
                         }}
                       />
 
+                      {/* Link chip */}
+                      {t.link && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                          <a
+                            href={t.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={e => e.stopPropagation()}
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 5,
+                              padding: '3px 9px', borderRadius: 20,
+                              background: soft, color: col,
+                              fontFamily: '-apple-system, var(--font-sans)',
+                              fontSize: 12, fontWeight: 500,
+                              textDecoration: 'none', maxWidth: '100%', overflow: 'hidden',
+                            }}
+                          >
+                            <svg width="11" height="11" viewBox="0 0 11 11" fill="none" style={{ flexShrink: 0 }}>
+                              <path d="M4.5 2H2a1 1 0 00-1 1v6a1 1 0 001 1h6a1 1 0 001-1V6.5M6.5 1H10m0 0v3.5M10 1L5 6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {linkLabel(t.link)}
+                            </span>
+                          </a>
+                          <button
+                            onClick={() => update(t.id, { link: '' })}
+                            title="Прибрати посилання"
+                            style={{
+                              background: 'none', border: 'none', cursor: 'pointer', padding: 2,
+                              color: '#C7C7CC', fontSize: 12, lineHeight: 1,
+                            }}
+                          >✕</button>
+                        </div>
+                      )}
+
                       {/* Meta row */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
-                        {/* Date — tappable, opens native picker */}
-                        <label style={{ position: 'relative', cursor: 'pointer' }}>
-                          <span style={{
-                            fontFamily: '-apple-system, var(--font-mono)', fontSize: 13,
-                            fontWeight: 500, letterSpacing: '0.01em',
-                            color: t.deadline ? col : '#C7C7CC',
-                          }}>
+                        {/* Date — button + hidden input via showPicker */}
+                        <div style={{ position: 'relative', display: 'inline-block' }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const el = document.querySelector<HTMLInputElement>(`[data-date-for="${t.id}"]`);
+                              if (el) { try { el.showPicker(); } catch { el.click(); } }
+                            }}
+                            style={{
+                              background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                              fontFamily: '-apple-system, var(--font-mono)', fontSize: 13,
+                              fontWeight: 500, letterSpacing: '0.01em',
+                              color: t.deadline ? col : '#C7C7CC',
+                            }}
+                          >
                             {t.deadline
                               ? new Date(t.deadline + 'T12:00').toLocaleDateString('uk-UA', { day: 'numeric', month: 'short', year: 'numeric' })
                               : '+ Дедлайн'}
-                          </span>
+                          </button>
                           <input
-                            className="ds-date-input"
+                            data-date-for={t.id}
                             type="date"
                             value={t.deadline}
                             onChange={e => update(t.id, { deadline: e.target.value })}
                             min={new Date().toISOString().slice(0, 10)}
-                            style={{
-                              position: 'absolute', inset: 0, opacity: 0,
-                              width: '100%', cursor: 'pointer',
-                            }}
+                            style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 1, height: 1, top: 0, left: 0 }}
                           />
-                        </label>
+                        </div>
 
                         {t.deadline && <>
                           <span style={{ color: 'rgba(60,60,67,.18)', fontSize: 14 }}>|</span>
@@ -597,7 +660,12 @@ export function DecomposeModal({ goal, spheres, onClose }: Props) {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {valid.map((t, i) => (
+                {valid.map((t, i) => {
+                  // Re-extract in case link wasn't separated yet (edge cases)
+                  const display = t.link ? t : extractLink(t.specific);
+                  const displayLink = t.link || display.link;
+                  const displayText = t.link ? t.specific : display.specific;
+                  return (
                   <div key={t.id} style={{
                     padding: '13px 15px', borderRadius: 'var(--radius-md)',
                     background: 'hsl(var(--surface-sunken))',
@@ -610,8 +678,30 @@ export function DecomposeModal({ goal, spheres, onClose }: Props) {
                     }}>{i + 1}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 600, color: 'hsl(var(--text-strong))' }}>
-                        {t.specific}
+                        {displayText}
                       </div>
+                      {displayLink && (
+                        <a
+                          href={displayLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 5,
+                            marginTop: 5, padding: '3px 9px', borderRadius: 20,
+                            background: soft, color: col,
+                            fontFamily: '-apple-system, var(--font-sans)',
+                            fontSize: 12, fontWeight: 500, textDecoration: 'none',
+                            maxWidth: '100%', overflow: 'hidden',
+                          }}
+                        >
+                          <svg width="11" height="11" viewBox="0 0 11 11" fill="none" style={{ flexShrink: 0 }}>
+                            <path d="M4.5 2H2a1 1 0 00-1 1v6a1 1 0 001 1h6a1 1 0 001-1V6.5M6.5 1H10m0 0v3.5M10 1L5 6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {linkLabel(displayLink)}
+                          </span>
+                        </a>
+                      )}
                       {t.deadline && (
                         <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'hsl(var(--text-muted))', marginTop: 3 }}>
                           до {new Date(t.deadline + 'T12:00').toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' })}
@@ -644,7 +734,8 @@ export function DecomposeModal({ goal, spheres, onClose }: Props) {
                       )}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

@@ -163,3 +163,19 @@ export async function setGoalSprint(goalId: string, isSprint: boolean): Promise<
     .eq('user_id', userId);
   if (error) throw new Error(error.message);
 }
+
+// ── Dependency ────────────────────────────────────────────────────────────
+
+export async function setGoalDependency(
+  goalId: string,
+  dependsOnId: string | null,
+): Promise<void> {
+  const userId = await getRequiredUserId();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('plan_goals')
+    .update({ depends_on_id: dependsOnId })
+    .eq('id', goalId)
+    .eq('user_id', userId);
+  if (error) throw new Error(error.message);
+}
