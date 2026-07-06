@@ -257,30 +257,35 @@ function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange, onSt
                   const urlMatch = t.specific.match(/https?:\/\/[^\s]+/);
                   const link = urlMatch?.[0] ?? null;
                   const text = link ? t.specific.replace(link, '').replace(/\s{2,}/g, ' ').trim() || t.specific : t.specific;
-                  let linkLabel = link;
-                  if (link) { try { const u = new URL(link); linkLabel = u.hostname.replace(/^www\./, '') + (u.pathname !== '/' ? '/…' : ''); } catch { linkLabel = link.slice(0, 30) + '…'; } }
-                  return (<>
+                  let linkLabel = '';
+                  if (link) { try { const u = new URL(link); linkLabel = u.hostname.replace(/^www\./, ''); } catch { linkLabel = link.slice(0, 28) + '…'; } }
+                  return (
                     <div style={{
                       fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: isDone ? 500 : 600,
                       color: isDone ? 'hsl(var(--text-muted))' : 'hsl(var(--text-strong))',
                       textDecoration: isDone ? 'line-through' : 'none',
-                      lineHeight: 1.4, wordBreak: 'break-word',
+                      lineHeight: 1.4,
+                      display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap',
                     }}>
-                      {text}
+                      <span>{text}</span>
+                      {link && (
+                        <a href={link} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 5,
+                          padding: '2px 9px 2px 7px', borderRadius: 999,
+                          border: `1px solid ${col}40`,
+                          background: `${col}12`, color: col,
+                          fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
+                          textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0,
+                          letterSpacing: '0.01em',
+                        }}>
+                          <svg width="10" height="10" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}>
+                            <path d="M2 10L10 2M10 2H5M10 2V7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                          {linkLabel}
+                        </a>
+                      )}
                     </div>
-                    {link && !isDone && (
-                      <a href={link} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 4,
-                        marginTop: 4, padding: '2px 8px', borderRadius: 999,
-                        background: `${col}18`, color: col,
-                        fontFamily: 'var(--font-sans)', fontSize: 11.5, fontWeight: 500,
-                        textDecoration: 'none', maxWidth: '100%',
-                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                      }}>
-                        🔗 {linkLabel}
-                      </a>
-                    )}
-                  </>);
+                  );
                 })()}
                 <div style={{ display: 'flex', gap: 8, marginTop: 4, alignItems: 'center', flexWrap: 'wrap' }}>
                   {dl && (
