@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useState, useTransition } from 'react';
 import React from 'react';
+import Link from 'next/link';
 import { ConstellationGoal, ConstellationSphere } from './GoalConstellation';
 import { ObsidianGraph } from './ObsidianGraph';
 import { DecomposeModal } from './DecomposeModal';
@@ -545,6 +546,19 @@ export function ConstellationView({ goals: initialGoals, spheres }: Props) {
             <span style={{ fontSize: 14, fontWeight: 800 }}>+</span>
             Додати ціль
           </button>
+
+          {/* Print */}
+          <Link href="/print" target="_blank" title="Версія А4" data-no-brighten style={{
+            width: 34, height: 34, flexShrink: 0, borderRadius: 999, cursor: 'pointer',
+            border: '1px solid hsl(var(--border-subtle))', background: 'hsl(var(--surface-card))',
+            color: 'hsl(var(--text-muted))',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            textDecoration: 'none',
+          }}>
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+              <path d="M3.5 5V1.5h8V5M3.5 10.5H2a1 1 0 01-1-1v-4a1 1 0 011-1h11a1 1 0 011 1v4a1 1 0 01-1 1h-1.5M3.5 8h8v5.5h-8V8z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </Link>
 
           {/* Theme toggle */}
           <button onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}

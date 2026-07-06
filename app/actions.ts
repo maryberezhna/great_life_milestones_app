@@ -41,3 +41,21 @@ export async function updateTaskStatus(taskId: string, status: string, goalId: s
 
   revalidatePath(`/goals/${goalId}`);
 }
+
+export async function updateTask(
+  taskId: string,
+  goalId: string,
+  data: { specific?: string; deadline?: string | null },
+) {
+  const supabase = await createClient();
+  await supabase
+    .from('plan_tasks')
+    .update({
+      ...(data.specific !== undefined ? { specific: data.specific } : {}),
+      ...(data.deadline !== undefined ? { deadline: data.deadline || null } : {}),
+    })
+    .eq('id', taskId)
+    .eq('user_id', DEV_USER_ID);
+
+  revalidatePath(`/goals/${goalId}`);
+}
