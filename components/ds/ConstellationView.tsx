@@ -253,14 +253,35 @@ function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange, onSt
                 {isDone && <span style={{ color: '#fff', fontSize: 11, fontWeight: 800, lineHeight: 1 }}>✓</span>}
               </span>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                  fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: isDone ? 500 : 600,
-                  color: isDone ? 'hsl(var(--text-muted))' : 'hsl(var(--text-strong))',
-                  textDecoration: isDone ? 'line-through' : 'none',
-                  lineHeight: 1.4,
-                }}>
-                  {t.specific}
-                </div>
+                {(() => {
+                  const urlMatch = t.specific.match(/https?:\/\/[^\s]+/);
+                  const link = urlMatch?.[0] ?? null;
+                  const text = link ? t.specific.replace(link, '').replace(/\s{2,}/g, ' ').trim() || t.specific : t.specific;
+                  let linkLabel = link;
+                  if (link) { try { const u = new URL(link); linkLabel = u.hostname.replace(/^www\./, '') + (u.pathname !== '/' ? '/…' : ''); } catch { linkLabel = link.slice(0, 30) + '…'; } }
+                  return (<>
+                    <div style={{
+                      fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: isDone ? 500 : 600,
+                      color: isDone ? 'hsl(var(--text-muted))' : 'hsl(var(--text-strong))',
+                      textDecoration: isDone ? 'line-through' : 'none',
+                      lineHeight: 1.4, wordBreak: 'break-word',
+                    }}>
+                      {text}
+                    </div>
+                    {link && !isDone && (
+                      <a href={link} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                        marginTop: 4, padding: '2px 8px', borderRadius: 999,
+                        background: `${col}18`, color: col,
+                        fontFamily: 'var(--font-sans)', fontSize: 11.5, fontWeight: 500,
+                        textDecoration: 'none', maxWidth: '100%',
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>
+                        🔗 {linkLabel}
+                      </a>
+                    )}
+                  </>);
+                })()}
                 <div style={{ display: 'flex', gap: 8, marginTop: 4, alignItems: 'center', flexWrap: 'wrap' }}>
                   {dl && (
                     <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5, color: isDone ? 'hsl(var(--text-faint))' : 'hsl(var(--text-muted))' }}>
