@@ -253,7 +253,10 @@ function draw(
     const isHov = hovered === n.id;
     const isSel = selectedId === n.goal?.id;
     const active = isHov || isSel;
+    const blocked = n.goal?.blocked === true;
     const r = n.r * (active ? 1.35 : 1);
+
+    if (blocked) ctx.globalAlpha = 0.3;
 
     const total = n.goal?.total ?? 0;
     const done  = n.goal?.done  ?? 0;
@@ -328,6 +331,7 @@ function draw(
     }
 
     ctx.shadowBlur = 0;
+    if (blocked) ctx.globalAlpha = 1;
   }
 
   // ── Sphere hub nodes ──

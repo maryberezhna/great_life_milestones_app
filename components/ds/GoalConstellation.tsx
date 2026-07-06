@@ -14,6 +14,7 @@ export interface ConstellationGoal {
   total?: number;
   isSprint?: boolean;
   status?: 'active' | 'paused' | 'done';
+  blocked?: boolean;
 }
 
 export interface ConstellationSphere {

@@ -23,6 +23,7 @@ interface Goal {
   description: string | null;
   status: string;
   target_date: string | null;
+  depends_on_id: string | null;
   plan_tasks: { count: number }[];
 }
 
@@ -31,18 +32,26 @@ export default async function SpherePage({ params }: { params: Promise<{ id: str
   const userId = await getRequiredUserId();
   const supabase = await createClient();
 
-  const [{ data: sphere }, { data: goalsRaw }] = await Promise.all([
+  const [{ data: sphere }, { data: goalsRaw }, { data: allGoalsRaw }] = await Promise.all([
     supabase.from('spheres').select('*').eq('id', id).eq('user_id', userId).single(),
     supabase
       .from('plan_goals')
-      .select('id, title, description, status, target_date, plan_tasks(count)')
+      .select('id, title, description, status, target_date, depends_on_id, plan_tasks(count)')
       .eq('sphere_id', id)
       .order('created_at', { ascending: false }),
+    supabase.from('plan_goals').select('id, status').eq('user_id', userId),
   ]);
 
   if (!sphere) notFound();
 
   const goals = (goalsRaw ?? []) as Goal[];
+  const doneGoalIds = new Set(
+    ((allGoalsRaw ?? []) as { id: string; status: string }[])
+      .filter(g => g.status === 'done')
+      .map(g => g.id)
+  );
+  const isBlocked = (g: Goal) => g.depends_on_id !== null && !doneGoalIds.has(g.depends_on_id);
+
   const active = goals.filter(g => g.status === 'active');
   const hold = goals.filter(g => g.status === 'paused' || g.status === 'hold');
   const done = goals.filter(g => g.status === 'done');
@@ -103,7 +112,7 @@ export default async function SpherePage({ params }: { params: Promise<{ id: str
         ) : (
           <>
             {active.length > 0 && (
-              <GoalGroup label="Активні" goals={active} accent={accent} soft={soft} />
+              <GoalGroup label="Активні" goals={active} accent={accent} soft={soft} blockedFn={isBlocked} />
             )}
             {hold.length > 0 && (
               <GoalGroup label="На паузі" goals={hold} accent={accent} soft={soft} muted />
@@ -119,13 +128,14 @@ export default async function SpherePage({ params }: { params: Promise<{ id: str
 }
 
 function GoalGroup({
-  label, goals, accent, soft, muted = false,
+  label, goals, accent, soft, muted = false, blockedFn,
 }: {
   label: string;
   goals: Goal[];
   accent: string;
   soft: string;
   muted?: boolean;
+  blockedFn?: (g: Goal) => boolean;
 }) {
   return (
     <div>
@@ -143,22 +153,24 @@ function GoalGroup({
         {goals.map(g => {
           const taskCount = g.plan_tasks?.[0]?.count ?? 0;
           const deadline = formatDate(g.target_date);
+          const blocked = blockedFn?.(g) ?? false;
+          const dim = muted || blocked;
 
           return (
             <Link key={g.id} href={`/goals/${g.id}`} style={{ textDecoration: 'none' }}>
               <div style={{
                 background: 'hsl(var(--surface-card))',
-                border: '1px solid hsl(var(--border-subtle))',
+                border: `1px solid ${blocked ? 'hsl(var(--border-subtle))' : 'hsl(var(--border-subtle))'}`,
                 borderRadius: 'var(--radius-lg)',
                 padding: '14px 16px',
-                opacity: muted ? 0.65 : 1,
+                opacity: dim ? 0.5 : 1,
                 cursor: 'pointer',
                 display: 'flex', alignItems: 'center', gap: 14,
               }}>
                 {/* Color bar */}
                 <span style={{
                   width: 3, height: 36, borderRadius: 2, flexShrink: 0,
-                  background: muted ? 'hsl(var(--border-subtle))' : accent,
+                  background: dim ? 'hsl(var(--border-subtle))' : accent,
                 }} />
 
                 {/* Text */}
@@ -171,7 +183,15 @@ function GoalGroup({
                     }}>
                       {g.title}
                     </div>
-                    {taskCount > 0 && taskCount <= 3 && (
+                    {blocked && (
+                      <span style={{
+                        flexShrink: 0, fontSize: 11, fontWeight: 600,
+                        color: 'hsl(var(--text-faint))', fontFamily: 'var(--font-sans)',
+                        background: 'hsl(var(--surface-sunken))', padding: '2px 7px',
+                        borderRadius: 'var(--radius-pill)',
+                      }}>⛓ залежить</span>
+                    )}
+                    {!blocked && taskCount > 0 && taskCount <= 3 && (
                       <span style={{
                         flexShrink: 0, fontSize: 11, fontWeight: 700,
                         color: '#059669', fontFamily: 'var(--font-sans)',
@@ -204,7 +224,7 @@ function GoalGroup({
                   {deadline && (
                     <span style={{
                       fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 500,
-                      color: muted ? 'hsl(var(--text-faint))' : accent,
+                      color: dim ? 'hsl(var(--text-faint))' : accent,
                       background: soft, padding: '3px 9px', borderRadius: 'var(--radius-sm)',
                     }}>
                       {deadline}

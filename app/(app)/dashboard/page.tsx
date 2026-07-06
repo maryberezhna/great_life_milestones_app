@@ -40,7 +40,7 @@ export default async function DashboardPage() {
       .eq('archived', false)
       .order('sort_order'),
     supabase.from('plan_goals')
-      .select('id, title, sphere_id, target_date, complexity, status')
+      .select('id, title, sphere_id, target_date, complexity, status, depends_on_id')
       .eq('user_id', userId)
       .in('status', ['active', 'paused']),
     supabase.from('plan_tasks')
@@ -50,7 +50,7 @@ export default async function DashboardPage() {
   ]);
 
   const spheresData = (spheresRaw ?? []) as { id: string; name: string; color: string; icon: string }[];
-  const goalsData  = (goalsRaw  ?? []) as { id: string; title: string; sphere_id: string; target_date: string | null; complexity: string | null; status: string }[];
+  const goalsData  = (goalsRaw  ?? []) as { id: string; title: string; sphere_id: string; target_date: string | null; complexity: string | null; status: string; depends_on_id: string | null }[];
   const tasksData  = (tasksRaw  ?? []) as { goal_id: string | null; status: string }[];
 
   // compute progress per goal: done / total (excluding irrelevant)
@@ -65,6 +65,8 @@ export default async function DashboardPage() {
   }
 
   const sphereById = new Map(spheresData.map(s => [s.id, s]));
+  // A goal is blocked if its dependency exists and is not yet done
+  const activeGoalIds = new Set(goalsData.map(g => g.id));
 
   const spheres: ConstellationSphere[] = spheresData.map(s => ({
     id: s.id,
@@ -90,6 +92,7 @@ export default async function DashboardPage() {
       total: td.total,
       isSprint: false,
       status: g.status as 'active' | 'paused',
+      blocked: g.depends_on_id !== null && activeGoalIds.has(g.depends_on_id),
     };
   });
 
