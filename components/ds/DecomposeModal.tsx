@@ -53,7 +53,7 @@ interface Props {
 
 function mkDraft(specific = '', deadline = ''): TaskDraft {
   const extracted = extractLink(specific);
-  return { id: Math.random().toString(36).slice(2), ...extracted, deadline, reminder: false, calendar: false, calendarTime: '09:00', recurrence: 'weekly' };
+  return { id: Math.random().toString(36).slice(2), ...extracted, deadline, reminder: false, calendar: false, calendarTime: '09:00', recurrence: 'none' };
 }
 
 function AutoTextarea({ value, onChange, placeholder, style, className }: {
@@ -164,7 +164,7 @@ export function DecomposeModal({ goal, spheres, onClose }: Props) {
       })));
       // remind for: manual reminder toggle OR recurring tasks with a deadline
       for (const t of valid.filter(t => (t.reminder || t.recurrence !== 'none') && t.deadline)) {
-        await scheduleNotification(t.specific.trim(), t.deadline);
+        try { await scheduleNotification(t.specific.trim(), t.deadline); } catch { /* ignore */ }
       }
       setStep(3);
     });
