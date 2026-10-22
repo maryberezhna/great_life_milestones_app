@@ -43,39 +43,6 @@ function ViewTabs({ view, onView }: { view: View; onView: (v: View) => void }) {
   );
 }
 
-function Legend({ spheres, filter, onFilter }: {
-  spheres: ConstellationSphere[];
-  filter: string | null;
-  onFilter: (k: string | null) => void;
-}) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'nowrap' }}>
-      {spheres.map(s => {
-        const on = filter === s.key;
-        const dim = filter && !on;
-        return (
-          <button key={s.key} onClick={() => onFilter(on ? null : s.key)} data-no-brighten
-            title={s.name}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 600,
-              cursor: 'pointer', padding: '4px 10px', borderRadius: 'var(--radius-pill)', border: 'none',
-              background: on ? `hsl(var(--sphere-${s.key}-soft))` : 'transparent',
-              color: on ? `hsl(var(--sphere-${s.key}))` : 'hsl(var(--text-body))',
-              opacity: dim ? 0.3 : 1,
-              transition: 'opacity .32s cubic-bezier(0.34,1.1,0.64,1), background .32s ease, color .32s ease, transform .32s cubic-bezier(0.34,1.3,0.64,1)',
-              transform: on ? 'scale(1.06)' : 'scale(1)',
-              whiteSpace: 'nowrap',
-            }}>
-            <span style={{ width: 7, height: 7, borderRadius: 999, background: `hsl(var(--sphere-${s.key}))`, boxShadow: `0 0 0 2px hsl(var(--sphere-${s.key}) / .18)`, flexShrink: 0 }} />
-            <span style={{ fontSize: 14 }}>{s.icon as string}</span>
-            <span style={{ fontSize: 12.5 }}>{s.name}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
 function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange, onStatusChange, onComplete, onDelete }: {
   goal: ConstellationGoal;
   spheres: ConstellationSphere[];
@@ -463,7 +430,6 @@ export function ConstellationView({ goals: initialGoals, spheres }: Props) {
   const [goals, setGoals] = useState<ConstellationGoal[]>(initialGoals);
   const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
   const [decomposeGoal, setDecomposeGoal] = useState<ConstellationGoal | null>(null);
-  const [filter, setFilter] = useState<string | null>(null);
   const [view, setView] = useState<View>('all');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [ideasOpen, setIdeasOpen] = useState(false);
@@ -532,9 +498,8 @@ export function ConstellationView({ goals: initialGoals, spheres }: Props) {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // Filter goals by sphere and view
+  // Filter goals by view
   const shown = goals.filter(g => {
-    if (filter && g.sphere !== filter) return false;
     if (view === 'paused')   return g.status === 'paused';
     if (view === 'closed')   return g.status === 'done' || (g.progress != null && g.progress >= 1);
     if (view === 'upcoming') return g.status === 'active' && !g.overdue && (g.progress ?? 0) < 1;
@@ -550,10 +515,13 @@ export function ConstellationView({ goals: initialGoals, spheres }: Props) {
       <style>{`
         @keyframes panelIn { from { transform: translateX(30px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         @media (prefers-reduced-motion: reduce) { aside { animation: none !important; } }
-        @media (max-width: 1500px) {
+        @media (max-width: 820px) {
           .dash-header { flex-wrap: wrap; padding: 10px 14px !important; gap: 10px !important; }
           .dash-head-left { width: 100%; justify-content: space-between; gap: 10px !important; }
           .dash-head-left > div:first-of-type { display: none; }
+          .dash-head-left > div:last-child { min-width: 0; overflow-x: auto; scrollbar-width: none; }
+          .dash-head-left > div:last-child::-webkit-scrollbar { display: none; }
+          .dash-head-left button { white-space: nowrap; }
           .dash-head-right { width: 100%; flex-shrink: 1 !important; min-width: 0; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
           .dash-head-right::-webkit-scrollbar { display: none; }
         }
@@ -585,7 +553,6 @@ export function ConstellationView({ goals: initialGoals, spheres }: Props) {
         </div>
 
         <div className="dash-head-right" style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-          <Legend spheres={spheres} filter={filter} onFilter={setFilter} />
 
           {/* Spheres settings */}
           <button
