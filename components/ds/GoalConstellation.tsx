@@ -15,6 +15,9 @@ export interface ConstellationGoal {
   isSprint?: boolean;
   status?: 'active' | 'paused' | 'done';
   blocked?: boolean;
+  sphereId?: string;
+  createdAt?: string;
+  doneDates?: string[];   // when each finished step was last touched — feeds the living sky
 }
 
 export interface ConstellationSphere {
