@@ -75,13 +75,14 @@ function Legend({ spheres, filter, onFilter }: {
   );
 }
 
-function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange, onStatusChange, onDelete }: {
+function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange, onStatusChange, onComplete, onDelete }: {
   goal: ConstellationGoal;
   spheres: ConstellationSphere[];
   onClose: () => void;
   onDecompose: () => void;
   onProgressChange: (goalId: string, done: number, total: number) => void;
   onStatusChange: (goalId: string, status: 'active' | 'paused') => void;
+  onComplete: (goalId: string) => void;
   onDelete: (goalId: string) => void;
 }) {
   const sp  = spheres.find(s => s.key === goal.sphere);
@@ -102,6 +103,16 @@ function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange, onSt
   const doneCount  = tasks.filter(t => t.status === 'done').length;
   const totalCount = tasks.length;
   const prog = totalCount > 0 ? doneCount / totalCount : 0;
+  const allDone = totalCount > 0 && doneCount === totalCount;
+  const [completing, setCompleting] = useState(false);
+
+  function handleComplete() {
+    if (!goal.id || completing) return;
+    setCompleting(true);
+    setGoalStatus(goal.id, 'done')
+      .then(() => onComplete(goal.id!))
+      .catch(() => setCompleting(false));
+  }
 
   function handleToggle(taskId: string, isDone: boolean) {
     setTasks(ts => {
@@ -333,6 +344,26 @@ function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange, onSt
 
       {/* CTA */}
       <div style={{ padding: '14px 26px 26px', borderTop: '1px solid hsl(var(--border-subtle))', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {/* Complete — works with or without steps; primary once every step is done */}
+        <button
+          onClick={handleComplete}
+          disabled={completing}
+          style={{
+            width: '100%', padding: allDone ? '13px 20px' : '11px 20px', borderRadius: 'var(--radius-md)',
+            border: allDone ? 'none' : `1.5px solid ${col}`,
+            cursor: completing ? 'default' : 'pointer',
+            background: allDone ? col : soft,
+            color: allDone ? '#fff' : col,
+            fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: allDone ? 15 : 14,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            boxShadow: allDone ? `0 4px 16px hsl(var(--sphere-${goal.sphere}) / .35)` : 'none',
+            opacity: completing ? 0.6 : 1,
+            transition: 'all .18s ease',
+          }}
+        >
+          ✓ {completing ? 'Зберігаю…' : 'Ціль досягнута'}
+        </button>
+
         {/* Pause / resume */}
         <button
           onClick={() => {
@@ -356,12 +387,12 @@ function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange, onSt
         </button>
 
         <button onClick={onDecompose} style={{
-          width: '100%', padding: '13px 20px', borderRadius: 'var(--radius-md)',
-          border: 'none', cursor: 'pointer',
-          background: col, color: '#fff',
-          fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 15,
+          width: '100%', padding: allDone ? '11px 20px' : '13px 20px', borderRadius: 'var(--radius-md)',
+          border: allDone ? '1.5px solid hsl(var(--border-subtle))' : 'none', cursor: 'pointer',
+          background: allDone ? 'transparent' : col, color: allDone ? 'hsl(var(--text-muted))' : '#fff',
+          fontFamily: 'var(--font-sans)', fontWeight: allDone ? 600 : 700, fontSize: allDone ? 14 : 15,
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          boxShadow: `0 4px 16px hsl(var(--sphere-${goal.sphere}) / .35)`,
+          boxShadow: allDone ? 'none' : `0 4px 16px hsl(var(--sphere-${goal.sphere}) / .35)`,
         }}>
           <span style={{ fontSize: 17, lineHeight: 1 }}>✦</span>
           {totalCount > 0 ? 'Додати ще кроки' : 'Розбити на кроки'}
@@ -629,6 +660,7 @@ export function ConstellationView({ goals: initialGoals, spheres }: Props) {
             onDecompose={() => { setDecomposeGoal(openGoal); setSelectedId(undefined); }}
             onProgressChange={handleProgressChange}
             onStatusChange={handleStatusChange}
+            onComplete={handleDelete}
             onDelete={handleDelete}
           />
         )}
