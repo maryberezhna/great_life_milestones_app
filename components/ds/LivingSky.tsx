@@ -51,9 +51,9 @@ const sans = 'var(--font-sans)';
 interface SphereGroup { sphere: ConstellationSphere; goals: ConstellationGoal[]; }
 
 // The road to a goal or a sphere carries its state — no captions:
-// flow — a step this week (or all steps done): the road shimmers
+// flow — in progress, a step this week: the road shimmers
 // faded — steps were, then silence: solid road that dims week by week
-// done — finished: calm solid road
+// done — reached (finished or all steps done): calm thicker road, no shimmer
 // planned — no step yet: dashed road
 // paused — dotted grey road
 type RoadKind = 'flow' | 'faded' | 'done' | 'planned' | 'paused';
@@ -64,26 +64,27 @@ function goalLine(g: ConstellationGoal, now: number): { text: string; lit: boole
   const age = g.createdAt ? weeksAgo(g.createdAt, now) : null;
   if (g.status === 'done') return { text: `завершено${dates.length ? ` · ${kroky(dates.length)}` : ''}`, lit: true, road: 'done' };
   if (g.status === 'paused') return { text: 'на паузі', lit: false, road: 'paused' };
-  if ((g.total ?? 0) > 0 && (g.done ?? 0) >= (g.total ?? 0)) return { text: 'усі кроки є — завершити?', lit: true, road: 'flow' };
+  if ((g.total ?? 0) > 0 && (g.done ?? 0) >= (g.total ?? 0)) return { text: 'усі кроки є — завершити?', lit: true, road: 'done' };
   if (last === 0) return { text: `крок цього тижня · ${kroky(dates.length)}`, lit: true, road: 'flow' };
   if (last !== null) return { text: `тиша ${tyzh(last)}`, lit: false, road: 'faded' };
   if (!g.total) return { text: 'ще без кроків', lit: false, road: 'planned' };
   return { text: `чекає першого кроку${age ? ` · ${tyzh(age)}` : ''}`, lit: false, road: 'planned' };
 }
 
+// a sphere's road follows its goals: shimmers only while some goal is in progress
 function sphereRoad(goals: ConstellationGoal[], now: number): RoadKind {
-  const dates = goals.flatMap(g => g.doneDates ?? []);
-  if (dates.some(d => weeksAgo(d, now) === 0)) return 'flow';
-  if (goals.every(g => g.status === 'done')) return 'done';
-  if (dates.length) return 'faded';
-  if (goals.every(g => g.status === 'paused')) return 'paused';
+  const roads = goals.map(g => goalLine(g, now).road);
+  if (roads.includes('flow')) return 'flow';
+  if (roads.every(r => r === 'done')) return 'done';
+  if (roads.some(r => r === 'faded' || r === 'done')) return 'faded';
+  if (roads.every(r => r === 'paused')) return 'paused';
   return 'planned';
 }
 
 function Road({ d, color, kind, e, width }: { d: string; color: string; kind: RoadKind; e: number; width: number }) {
   if (kind === 'planned') return <path d={d} stroke={color} strokeOpacity={0.45} strokeWidth={width} strokeDasharray="4 5" fill="none" />;
   if (kind === 'paused') return <path d={d} stroke={QUIET} strokeOpacity={0.8} strokeWidth={width + 0.4} strokeDasharray="0.1 6" strokeLinecap="round" fill="none" />;
-  if (kind === 'done') return <path d={d} stroke={color} strokeOpacity={0.6} strokeWidth={width} fill="none" />;
+  if (kind === 'done') return <path d={d} stroke={color} strokeOpacity={0.75} strokeWidth={width + 1.6} strokeLinecap="round" fill="none" />;
   if (kind === 'faded') return <path d={d} stroke={color} strokeOpacity={0.15 + 0.45 * e} strokeWidth={width} fill="none" />;
   return (<>
     <path d={d} stroke={color} strokeOpacity={0.55} strokeWidth={width} fill="none" />
