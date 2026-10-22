@@ -7,6 +7,7 @@ import { GoalTaskItem } from '@/components/ds/GoalTaskItem';
 import { ProgressBar } from '@/components/ds/ProgressBar';
 import { GoalStatusToggle } from '@/components/ds/GoalStatusToggle';
 import { DependsOnPicker } from '@/components/ds/DependsOnPicker';
+import { GoalTitle } from '@/components/ds/EditableTitle';
 
 const HEX_TO_KEY: Record<string, string> = {
   '#8B5CF6': 'violet',
@@ -122,12 +123,10 @@ export default async function GoalPage({ params }: { params: Promise<{ id: strin
         )}
 
         {/* Goal title */}
-        <h1 style={{
+        <GoalTitle goalId={id} title={g.title} as="h1" style={{
           fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 24,
           letterSpacing: '-0.02em', color: 'hsl(var(--text-strong))', lineHeight: 1.25,
-        }}>
-          {g.title}
-        </h1>
+        }} />
 
         {g.description && (
           <p style={{

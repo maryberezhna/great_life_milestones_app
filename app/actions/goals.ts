@@ -117,6 +117,23 @@ export async function promoteIdeaToGoal(ideaId: string, sphereId: string): Promi
   return data as { id: string; title: string; sphere_id: string };
 }
 
+// ── Title ─────────────────────────────────────────────────────────────────
+
+export async function renameGoal(goalId: string, title: string): Promise<void> {
+  const t = title.trim();
+  if (!t) throw new Error('Назва не може бути порожньою');
+  const userId = await getRequiredUserId();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('plan_goals')
+    .update({ title: t })
+    .eq('id', goalId)
+    .eq('user_id', userId)
+    .select('id');
+  if (error) throw new Error(error.message);
+  if (!data || data.length === 0) throw new Error('No rows updated — check RLS or goal ownership');
+}
+
 // ── Status ────────────────────────────────────────────────────────────────
 
 export async function setGoalStatus(

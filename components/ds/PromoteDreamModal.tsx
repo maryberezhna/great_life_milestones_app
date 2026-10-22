@@ -6,6 +6,7 @@ import type { SphereOption } from '@/app/actions/goals';
 import { createGoalFromDream } from '@/app/actions/goals';
 import { createTasks } from '@/app/actions/tasks';
 import { decomposeWithAI } from '@/app/actions/decompose';
+import { NewSphereForm, freeSphereColor, type CreatedSphere } from './NewSphereForm';
 
 type Recurrence = 'none' | 'daily' | 'weekdays' | 'weekly' | 'monthly';
 
@@ -46,7 +47,11 @@ function pluralKrok(n: number) {
   if (n === 1) return '1 крок'; if (n <= 4) return `${n} кроки`; return `${n} кроків`;
 }
 
-export function PromoteDreamModal({ dream, spheres, onClose, onPromoted }: Props) {
+export function PromoteDreamModal({ dream, spheres: givenSpheres, onClose, onPromoted }: Props) {
+  // a sphere made right here joins the list at once
+  const [created, setCreated]   = useState<CreatedSphere[]>([]);
+  const spheres: SphereOption[] = [...givenSpheres, ...created];
+  const [newSphereOpen, setNewSphereOpen] = useState(givenSpheres.length === 0);
   const [step, setStep]         = useState<Step>(1);
   const [sphereId, setSphereId] = useState(spheres[0]?.id ?? '');
   const [tasks, setTasks]       = useState<TaskDraft[]>([]);
@@ -223,7 +228,27 @@ export function PromoteDreamModal({ dream, spheres, onClose, onPromoted }: Props
                       </button>
                     );
                   })}
+                  {!newSphereOpen && (
+                    <button className="pdm-sphere-btn" onClick={() => setNewSphereOpen(true)}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 6,
+                        padding: '7px 13px', borderRadius: 'var(--radius-pill)',
+                        border: '1.5px dashed hsl(var(--border-strong))', background: 'transparent',
+                        cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600,
+                        color: 'hsl(var(--text-muted))',
+                      }}
+                    >+ Нова сфера</button>
+                  )}
                 </div>
+                {newSphereOpen && (
+                  <div style={{ marginTop: 10 }}>
+                    <NewSphereForm
+                      initialColor={freeSphereColor(spheres.map(s => s.color))}
+                      onCreated={(s: CreatedSphere) => { setCreated(c => [...c, s]); setSphereId(s.id); setNewSphereOpen(false); }}
+                      onCancel={() => setNewSphereOpen(false)}
+                    />
+                  </div>
+                )}
               </div>
 
               {aiError && (
@@ -235,7 +260,7 @@ export function PromoteDreamModal({ dream, spheres, onClose, onPromoted }: Props
               )}
 
               {/* Primary: AI */}
-              <button className="pdm-ai" onClick={handleAI} disabled={isAiPending}
+              <button className="pdm-ai" onClick={handleAI} disabled={isAiPending || !sphereId}
                 style={{
                   width: '100%', padding: '15px 20px', borderRadius: 'var(--radius-xl)',
                   background: col, color: '#fff', border: 'none',
@@ -263,7 +288,7 @@ export function PromoteDreamModal({ dream, spheres, onClose, onPromoted }: Props
               </button>
 
               {/* Secondary: Manual */}
-              <button className="pdm-manual" onClick={handleManual} disabled={isAiPending}
+              <button className="pdm-manual" onClick={handleManual} disabled={isAiPending || !sphereId}
                 style={{
                   width: '100%', padding: '12px 20px', borderRadius: 'var(--radius-xl)',
                   border: '1.5px solid hsl(var(--border-subtle))', background: 'transparent',

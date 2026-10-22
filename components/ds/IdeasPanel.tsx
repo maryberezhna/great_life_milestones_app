@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useTransition, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { createGoalFromDream } from '@/app/actions/goals';
+import { NewSphereForm, freeSphereColor, type CreatedSphere } from './NewSphereForm';
 import type { ConstellationGoal, ConstellationSphere } from './GoalConstellation';
 
 interface Props {
@@ -11,7 +13,12 @@ interface Props {
   onDecompose: (goal: ConstellationGoal) => void;
 }
 
-export function IdeasPanel({ spheres, onClose, onGoalAdded, onDecompose }: Props) {
+export function IdeasPanel({ spheres: givenSpheres, onClose, onGoalAdded, onDecompose }: Props) {
+  const router = useRouter();
+  // spheres made right here show up at once, before the page catches up
+  const [created, setCreated] = useState<CreatedSphere[]>([]);
+  const spheres: ConstellationSphere[] = [...givenSpheres, ...created.filter(c => !givenSpheres.some(s => s.id === c.id))];
+  const [newSphereOpen, setNewSphereOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [sphereId, setSphereId] = useState<string>('');
   const [noSphereError, setNoSphereError] = useState(false);
@@ -30,6 +37,7 @@ export function IdeasPanel({ spheres, onClose, onGoalAdded, onDecompose }: Props
       id: `tmp-${Date.now()}`,
       title: t,
       sphere: sphere.key,
+      sphereId: sphere.id,
       weight: 1,
       status: 'active',
     };
@@ -52,6 +60,14 @@ export function IdeasPanel({ spheres, onClose, onGoalAdded, onDecompose }: Props
         setRecent(r => r.filter(g => g.id !== optimisticGoal.id));
       }
     });
+  }
+
+  function handleSphereCreated(s: CreatedSphere) {
+    setCreated(c => [...c, s]);
+    setSphereId(s.id);
+    setNoSphereError(false);
+    setNewSphereOpen(false);
+    router.refresh(); // the sky and the sidebar get the new sphere too
   }
 
   return (
@@ -131,7 +147,29 @@ export function IdeasPanel({ spheres, onClose, onGoalAdded, onDecompose }: Props
                 </button>
               );
             })}
+            {!newSphereOpen && (
+              <button data-no-brighten onClick={() => setNewSphereOpen(true)}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  padding: '5px 11px', borderRadius: 'var(--radius-pill)',
+                  border: '1.5px dashed hsl(var(--border-strong))', background: 'transparent',
+                  color: 'hsl(var(--text-muted))', cursor: 'pointer',
+                  fontFamily: 'var(--font-sans)', fontSize: 12.5, fontWeight: 600,
+                }}
+              >
+                + Нова сфера
+              </button>
+            )}
           </div>
+          {newSphereOpen && (
+            <div style={{ marginTop: 10 }}>
+              <NewSphereForm
+                initialColor={freeSphereColor(spheres.map(s => s.color))}
+                onCreated={handleSphereCreated}
+                onCancel={() => setNewSphereOpen(false)}
+              />
+            </div>
+          )}
         </div>
 
         <button

@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { createSphere, updateSphere, deleteSphere } from '@/app/actions/spheres';
-import { SPHERE_PALETTE } from '@/lib/sphere-palette';
+import { updateSphere, deleteSphere } from '@/app/actions/spheres';
+import { ColorPicker, NewSphereForm, freeSphereColor } from './NewSphereForm';
 import type { ConstellationSphere } from './GoalConstellation';
 
 const HEX_TO_KEY: Record<string, string> = {
@@ -17,36 +17,11 @@ interface Props {
   onClose: () => void;
 }
 
-function ColorPicker({ value, onChange }: { value: string; onChange: (hex: string) => void }) {
-  return (
-    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-      {SPHERE_PALETTE.map(c => {
-        const on = value === c.hex;
-        return (
-          <button key={c.key} data-no-brighten title={c.label}
-            onClick={() => onChange(c.hex)}
-            style={{
-              width: 26, height: 26, borderRadius: 999, border: 'none', cursor: 'pointer',
-              background: `hsl(var(--sphere-${c.key}))`,
-              boxShadow: on ? `0 0 0 2px hsl(var(--surface-base)), 0 0 0 4px hsl(var(--sphere-${c.key}))` : 'none',
-              transform: on ? 'scale(1.15)' : 'scale(1)',
-              transition: 'transform .18s ease, box-shadow .18s ease',
-            }}
-          />
-        );
-      })}
-    </div>
-  );
-}
-
 export function SpheresModal({ spheres, onClose }: Props) {
   const router = useRouter();
   const [, startT] = useTransition();
 
   // New sphere form
-  const [newName, setNewName] = useState('');
-  const [newIcon, setNewIcon] = useState('');
-  const [newColor, setNewColor] = useState('#8B5CF6');
   const [adding, setAdding] = useState(false);
 
   // Edit state per sphere
@@ -65,17 +40,6 @@ export function SpheresModal({ spheres, onClose }: Props) {
     setEditIcon(String(s.icon ?? ''));
     setEditColor(s.color);
     setDeleteConfirm(null);
-  }
-
-  function handleAdd() {
-    const name = newName.trim();
-    if (!name) return;
-    setAdding(false);
-    startT(async () => {
-      await createSphere(name, newIcon.trim() || '⭐', newColor);
-      setNewName(''); setNewIcon(''); setNewColor('#8B5CF6');
-      router.refresh();
-    });
   }
 
   function handleSaveEdit() {
@@ -148,61 +112,12 @@ export function SpheresModal({ spheres, onClose }: Props) {
             + Нова сфера
           </button>
         ) : (
-          <div style={{
-            padding: '14px', borderRadius: 'var(--radius-md)',
-            border: '1.5px solid hsl(var(--sphere-violet))',
-            background: 'hsl(var(--sphere-violet-soft))',
-            marginBottom: 16,
-            animation: 'fade-up .22s ease',
-          }}>
-            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'hsl(var(--sphere-violet))', marginBottom: 10 }}>
-              Нова сфера
-            </div>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-              <input
-                value={newIcon}
-                onChange={e => setNewIcon(e.target.value)}
-                placeholder="⭐"
-                maxLength={2}
-                style={{
-                  width: 48, padding: '8px', borderRadius: 'var(--radius-md)', textAlign: 'center',
-                  border: '1.5px solid hsl(var(--border-subtle))', outline: 'none',
-                  fontFamily: 'var(--font-sans)', fontSize: 18, background: 'hsl(var(--surface-base))',
-                  color: 'hsl(var(--text-strong))',
-                }}
-              />
-              <input
-                value={newName}
-                onChange={e => setNewName(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleAdd()}
-                placeholder="Назва сфери…"
-                style={{
-                  flex: 1, padding: '8px 12px', borderRadius: 'var(--radius-md)',
-                  border: '1.5px solid hsl(var(--border-subtle))', outline: 'none',
-                  fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 500,
-                  background: 'hsl(var(--surface-base))', color: 'hsl(var(--text-strong))',
-                }}
-              />
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <ColorPicker value={newColor} onChange={setNewColor} />
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => setAdding(false)} data-no-brighten style={{
-                flex: 1, padding: '8px', borderRadius: 'var(--radius-md)',
-                border: '1px solid hsl(var(--border-subtle))', background: 'transparent',
-                color: 'hsl(var(--text-muted))', cursor: 'pointer',
-                fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13,
-              }}>Скасувати</button>
-              <button onClick={handleAdd} disabled={!newName.trim()} style={{
-                flex: 2, padding: '8px', borderRadius: 'var(--radius-md)',
-                border: 'none',
-                background: newName.trim() ? `hsl(var(--sphere-${colorKey(newColor)}))` : 'hsl(var(--surface-sunken))',
-                color: newName.trim() ? '#fff' : 'hsl(var(--text-faint))',
-                cursor: newName.trim() ? 'pointer' : 'default',
-                fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 13,
-              }}>Додати</button>
-            </div>
+          <div style={{ marginBottom: 16 }}>
+            <NewSphereForm
+              initialColor={freeSphereColor(spheres.map(s => s.color))}
+              onCreated={() => { setAdding(false); router.refresh(); }}
+              onCancel={() => setAdding(false)}
+            />
           </div>
         )}
 
