@@ -46,24 +46,51 @@ function wrap(text: string, max: number): string[] {
 }
 
 const halo: React.CSSProperties = { paintOrder: 'stroke', stroke: NIGHT, strokeWidth: 5, strokeLinejoin: 'round' };
-// small captions: thinner halo so the letters stay crisp
-const haloThin: React.CSSProperties = { ...halo, strokeWidth: 3 };
-const CAPTION = '#b6b1d1';
 const sans = 'var(--font-sans)';
 
 interface SphereGroup { sphere: ConstellationSphere; goals: ConstellationGoal[]; }
 
-function goalLine(g: ConstellationGoal, now: number) {
+// The road to a goal or a sphere carries its state — no captions:
+// flow — a step this week (or all steps done): the road shimmers
+// faded — steps were, then silence: solid road that dims week by week
+// done — finished: calm solid road
+// planned — no step yet: dashed road
+// paused — dotted grey road
+type RoadKind = 'flow' | 'faded' | 'done' | 'planned' | 'paused';
+
+function goalLine(g: ConstellationGoal, now: number): { text: string; lit: boolean; road: RoadKind } {
   const dates = g.doneDates ?? [];
   const last = dates.length ? Math.min(...dates.map(d => weeksAgo(d, now))) : null;
   const age = g.createdAt ? weeksAgo(g.createdAt, now) : null;
-  if (g.status === 'done') return { text: `завершено${dates.length ? ` · ${kroky(dates.length)}` : ''}`, lit: true };
-  if (g.status === 'paused') return { text: 'на паузі', lit: false };
-  if ((g.total ?? 0) > 0 && (g.done ?? 0) >= (g.total ?? 0)) return { text: 'усі кроки є — завершити?', lit: true };
-  if (last === 0) return { text: `крок цього тижня · ${kroky(dates.length)}`, lit: true };
-  if (last !== null) return { text: `тиша ${tyzh(last)}`, lit: false };
-  if (!g.total) return { text: 'ще без кроків', lit: false };
-  return { text: `чекає першого кроку${age ? ` · ${tyzh(age)}` : ''}`, lit: false };
+  if (g.status === 'done') return { text: `завершено${dates.length ? ` · ${kroky(dates.length)}` : ''}`, lit: true, road: 'done' };
+  if (g.status === 'paused') return { text: 'на паузі', lit: false, road: 'paused' };
+  if ((g.total ?? 0) > 0 && (g.done ?? 0) >= (g.total ?? 0)) return { text: 'усі кроки є — завершити?', lit: true, road: 'flow' };
+  if (last === 0) return { text: `крок цього тижня · ${kroky(dates.length)}`, lit: true, road: 'flow' };
+  if (last !== null) return { text: `тиша ${tyzh(last)}`, lit: false, road: 'faded' };
+  if (!g.total) return { text: 'ще без кроків', lit: false, road: 'planned' };
+  return { text: `чекає першого кроку${age ? ` · ${tyzh(age)}` : ''}`, lit: false, road: 'planned' };
+}
+
+function sphereRoad(goals: ConstellationGoal[], now: number): RoadKind {
+  const dates = goals.flatMap(g => g.doneDates ?? []);
+  if (dates.some(d => weeksAgo(d, now) === 0)) return 'flow';
+  if (goals.every(g => g.status === 'done')) return 'done';
+  if (dates.length) return 'faded';
+  if (goals.every(g => g.status === 'paused')) return 'paused';
+  return 'planned';
+}
+
+function Road({ d, color, kind, e, width }: { d: string; color: string; kind: RoadKind; e: number; width: number }) {
+  if (kind === 'planned') return <path d={d} stroke={color} strokeOpacity={0.45} strokeWidth={width} strokeDasharray="4 5" fill="none" />;
+  if (kind === 'paused') return <path d={d} stroke={QUIET} strokeOpacity={0.8} strokeWidth={width + 0.4} strokeDasharray="0.1 6" strokeLinecap="round" fill="none" />;
+  if (kind === 'done') return <path d={d} stroke={color} strokeOpacity={0.6} strokeWidth={width} fill="none" />;
+  if (kind === 'faded') return <path d={d} stroke={color} strokeOpacity={0.15 + 0.45 * e} strokeWidth={width} fill="none" />;
+  return (<>
+    <path d={d} stroke={color} strokeOpacity={0.55} strokeWidth={width} fill="none" />
+    {/* light running from «Я» outwards */}
+    <path className="sky-flow" d={d} stroke={`color-mix(in srgb, ${color} 45%, #fff)`} strokeWidth={width + 0.8}
+      strokeDasharray="8 24" strokeLinecap="round" fill="none" />
+  </>);
 }
 
 function Star({ g, color, x, y, now, selected }: { g: ConstellationGoal; color: string; x: number; y: number; now: number; selected: boolean }) {
@@ -89,22 +116,22 @@ function Goal({ g, color, hub, x, y, labelX, dir, max, now, selected, onSelect }
   g: ConstellationGoal; color: string; hub: { x: number; y: number }; x: number; y: number;
   labelX: number; dir: 1 | -1; max: number; now: number; selected: boolean; onSelect?: (g: ConstellationGoal) => void;
 }) {
-  const { text, lit } = goalLine(g, now);
+  const { text, lit, road } = goalLine(g, now);
   const lines = wrap(g.title, max);
-  const ty = y - (lines.length === 2 ? 13 : 5);
+  // the star already shows the state — no caption under the title, only a hover hint
+  const ty = y + 5 - (lines.length - 1) * 8;
   const anchor = dir > 0 ? 'start' : 'end';
   const k = 38 * dir;
   return (
-    <g style={{ cursor: 'pointer' }} onClick={() => onSelect?.(g)} role="button" aria-label={g.title}>
-      <path d={`M${hub.x} ${hub.y} C ${hub.x + k} ${hub.y}, ${x - k} ${y}, ${x - 11 * dir} ${y}`}
-        stroke={color} strokeOpacity={lit ? 0.55 : 0.2} fill="none" strokeWidth={1.2} />
+    <g style={{ cursor: 'pointer' }} onClick={() => onSelect?.(g)} role="button" aria-label={`${g.title}: ${text}`}>
+      <title>{text}</title>
+      <Road d={`M${hub.x} ${hub.y} C ${hub.x + k} ${hub.y}, ${x - k} ${y}, ${x - 11 * dir} ${y}`}
+        color={color} kind={road} e={energy(g.doneDates ?? [], now)} width={1.3} />
       <Star g={g} color={color} x={x} y={y} now={now} selected={selected} />
       {lines.map((l, i) => (
         <text key={i} x={labelX} y={ty + i * 16.5} textAnchor={anchor}
           style={{ ...halo, font: `600 14px ${sans}`, fill: lit || selected ? '#fff' : '#bdb8d3' }}>{l}</text>
       ))}
-      <text x={labelX} y={ty + lines.length * 16.5 + 1} textAnchor={anchor}
-        style={{ ...haloThin, font: `600 12.5px ${sans}`, fill: lit ? color : CAPTION }}>{text}</text>
       {/* generous hit area */}
       <rect x={dir > 0 ? x - 16 : labelX - 230} y={y - 24} width={dir > 0 ? labelX - x + 246 : x - labelX + 246} height={48} fill="transparent" />
     </g>
@@ -115,22 +142,12 @@ function SphereNode({ group, hub, anchor, dx, dy, now }: {
   group: SphereGroup; hub: { x: number; y: number }; anchor: 'middle' | 'start'; dx: number; dy: number; now: number;
 }) {
   const { sphere: s, goals } = group;
-  const dates = goals.flatMap(g => g.doneDates ?? []);
-  const e = energy(dates, now);
-  const on = new Set(dates.map(d => weeksAgo(d, now)));
-  const last = dates.length ? Math.min(...dates.map(d => weeksAgo(d, now))) : null;
-  const state = last === 0 ? 'світиться цього тижня' : last !== null ? `тьмяніє · ${tyzh(last)}` : 'у тиші';
-  const x0 = anchor === 'middle' ? hub.x + dx - 54 : hub.x + dx;
+  const e = energy(goals.flatMap(g => g.doneDates ?? []), now);
   return (<>
     <circle className={e ? 'sky-twinkle' : undefined} cx={hub.x} cy={hub.y} r={16 + 12 * e} fill={s.color} fillOpacity={0.1 + 0.2 * e} />
     <circle cx={hub.x} cy={hub.y} r={6 + 3 * e} fill={mix(s.color, e)} />
     <text x={hub.x + dx} y={hub.y + dy} textAnchor={anchor}
       style={{ ...halo, font: `800 12.5px ${sans}`, letterSpacing: '.1em', textTransform: 'uppercase', fill: mix(s.color, Math.max(e, 0.45)) }}>{s.name}</text>
-    <text x={hub.x + dx} y={hub.y + dy + 15} textAnchor={anchor} style={{ ...haloThin, font: `600 12px ${sans}`, fill: CAPTION }}>{state}</text>
-    {Array.from({ length: 12 }, (_, i) => 11 - i).map((wk, i) => (
-      <circle key={wk} cx={x0 + i * 9 + 3} cy={hub.y + dy + 28} r={3}
-        fill={on.has(wk) ? s.color : '#34324a'} stroke={wk === 0 ? '#6d6a86' : undefined} strokeWidth={wk === 0 ? 1 : undefined} />
-    ))}
   </>);
 }
 
@@ -200,8 +217,8 @@ export function LivingSky({ goals, spheres, selectedId, onSelect, onMeClick, sty
         const hubX = me.x + dir * (idx % 2 ? 250 : 175);              // staggered — no straight columns
         const hub = { x: hubX, y: y + 30 + (h - 30) / 2 };
         const e = energy(gr.goals.flatMap(g => g.doneDates ?? []), now);
-        lines.push(<path key={`l${gr.sphere.id}`} d={`M${me.x} ${me.y} C ${me.x + dir * 90} ${me.y}, ${hub.x - dir * 90} ${hub.y}, ${hub.x} ${hub.y}`}
-          stroke={gr.sphere.color} strokeOpacity={0.18 + 0.5 * e} strokeWidth={1.4 + 1.4 * e} fill="none" />);
+        lines.push(<Road key={`l${gr.sphere.id}`} d={`M${me.x} ${me.y} C ${me.x + dir * 90} ${me.y}, ${hub.x - dir * 90} ${hub.y}, ${hub.x} ${hub.y}`}
+          color={gr.sphere.color} kind={sphereRoad(gr.goals, now)} e={e} width={1.4 + 1.4 * e} />);
         const half = (gr.goals.length - 1) / 2 || 1;
         gr.goals.forEach((g, i) => {
           const t = gr.goals.length > 1 ? (i - (gr.goals.length - 1) / 2) / half : 0;
@@ -209,7 +226,7 @@ export function LivingSky({ goals, spheres, selectedId, onSelect, onMeClick, sty
             x={hubX + dir * (78 + 26 * (1 - t * t))} y={y + 30 + rowH / 2 + i * rowH}
             labelX={hubX + dir * 126} dir={dir} max={30} selected={g.id === selectedId} onSelect={onSelect} />);
         });
-        const dy = -(h - 30) / 2 - 12 > -44 ? -48 : -(h - 30) / 2 - 22;
+        const dy = -(h - 30) / 2 - 12 > -28 ? -28 : -(h - 30) / 2 - 2;
         body.push(<SphereNode key={`s${gr.sphere.id}`} group={gr} hub={hub} anchor="middle" dx={0} dy={dy} now={now} />);
         y += h + gap;
       });
@@ -218,15 +235,15 @@ export function LivingSky({ goals, spheres, selectedId, onSelect, onMeClick, sty
     body.push(<Me key="me" x={me.x} y={me.y} r={34} onClick={onMeClick} />);
   } else {
     W = 380;
-    const rowH = 60, gap = 30, head = 58;
+    const rowH = 60, gap = 30, head = 34;
     const me = { x: W / 2, y: 104 };                               // centred under the floating top bar
     let y = 150, prev = me;
     groups.forEach((gr, idx) => {
       const h = gr.goals.length * rowH;
       const hub = { x: idx % 2 ? 58 : 30, y: y + head + h / 2 };     // trunk sways left/right
       const e = energy(gr.goals.flatMap(g => g.doneDates ?? []), now);
-      lines.push(<path key={`l${gr.sphere.id}`} d={`M${prev.x} ${prev.y} C ${prev.x} ${prev.y + 50}, ${hub.x} ${hub.y - 50}, ${hub.x} ${hub.y}`}
-        stroke={gr.sphere.color} strokeOpacity={0.18 + 0.5 * e} strokeWidth={1.4 + 1.2 * e} fill="none" />);
+      lines.push(<Road key={`l${gr.sphere.id}`} d={`M${prev.x} ${prev.y} C ${prev.x} ${prev.y + 50}, ${hub.x} ${hub.y - 50}, ${hub.x} ${hub.y}`}
+        color={gr.sphere.color} kind={sphereRoad(gr.goals, now)} e={e} width={1.4 + 1.2 * e} />);
       const half = (gr.goals.length - 1) / 2 || 1;
       gr.goals.forEach((g, i) => {
         const t = gr.goals.length > 1 ? (i - (gr.goals.length - 1) / 2) / half : 0;
@@ -250,8 +267,10 @@ export function LivingSky({ goals, spheres, selectedId, onSelect, onMeClick, sty
       <style>{`
         @keyframes sky-tw { 0%,100% { opacity: 1; } 50% { opacity: .55; } }
         .sky-twinkle { animation: sky-tw 3s ease-in-out infinite; }
+        @keyframes sky-run { to { stroke-dashoffset: -64; } }
+        .sky-flow { animation: sky-run 2.4s linear infinite, sky-tw 3s ease-in-out infinite; }
         .sky-me { transition: filter .2s; } .sky-me:hover { filter: brightness(1.12) drop-shadow(0 0 10px rgb(190 170 255 / .6)); }
-        @media (prefers-reduced-motion: reduce) { .sky-twinkle { animation: none; } }
+        @media (prefers-reduced-motion: reduce) { .sky-twinkle, .sky-flow { animation: none; } }
       `}</style>
       {groups.length === 0 ? (
         <div style={{ padding: 48, textAlign: 'center', color: '#8f8ba6', fontFamily: sans, fontSize: 14 }}>Тут поки немає цілей.</div>
