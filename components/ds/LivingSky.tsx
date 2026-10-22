@@ -46,8 +46,10 @@ function wrap(text: string, max: number): string[] {
 }
 
 const halo: React.CSSProperties = { paintOrder: 'stroke', stroke: NIGHT, strokeWidth: 5, strokeLinejoin: 'round' };
+// small captions: thinner halo so the letters stay crisp
+const haloThin: React.CSSProperties = { ...halo, strokeWidth: 3 };
+const CAPTION = '#b6b1d1';
 const sans = 'var(--font-sans)';
-const mono = 'var(--font-mono, ui-monospace, monospace)';
 
 interface SphereGroup { sphere: ConstellationSphere; goals: ConstellationGoal[]; }
 
@@ -102,7 +104,7 @@ function Goal({ g, color, hub, x, y, labelX, dir, max, now, selected, onSelect }
           style={{ ...halo, font: `600 14px ${sans}`, fill: lit || selected ? '#fff' : '#bdb8d3' }}>{l}</text>
       ))}
       <text x={labelX} y={ty + lines.length * 16.5 + 1} textAnchor={anchor}
-        style={{ ...halo, font: `500 11.5px ${mono}`, fill: lit ? color : '#8f8ba6' }}>{text}</text>
+        style={{ ...haloThin, font: `600 12.5px ${sans}`, fill: lit ? color : CAPTION }}>{text}</text>
       {/* generous hit area */}
       <rect x={dir > 0 ? x - 16 : labelX - 230} y={y - 24} width={dir > 0 ? labelX - x + 246 : x - labelX + 246} height={48} fill="transparent" />
     </g>
@@ -124,9 +126,9 @@ function SphereNode({ group, hub, anchor, dx, dy, now }: {
     <circle cx={hub.x} cy={hub.y} r={6 + 3 * e} fill={mix(s.color, e)} />
     <text x={hub.x + dx} y={hub.y + dy} textAnchor={anchor}
       style={{ ...halo, font: `800 12.5px ${sans}`, letterSpacing: '.1em', textTransform: 'uppercase', fill: mix(s.color, Math.max(e, 0.45)) }}>{s.name}</text>
-    <text x={hub.x + dx} y={hub.y + dy + 14} textAnchor={anchor} style={{ ...halo, font: `500 11px ${mono}`, fill: '#8f8ba6' }}>{state}</text>
+    <text x={hub.x + dx} y={hub.y + dy + 15} textAnchor={anchor} style={{ ...haloThin, font: `600 12px ${sans}`, fill: CAPTION }}>{state}</text>
     {Array.from({ length: 12 }, (_, i) => 11 - i).map((wk, i) => (
-      <circle key={wk} cx={x0 + i * 9 + 3} cy={hub.y + dy + 26} r={3}
+      <circle key={wk} cx={x0 + i * 9 + 3} cy={hub.y + dy + 28} r={3}
         fill={on.has(wk) ? s.color : '#34324a'} stroke={wk === 0 ? '#6d6a86' : undefined} strokeWidth={wk === 0 ? 1 : undefined} />
     ))}
   </>);
