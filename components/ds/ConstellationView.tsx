@@ -154,7 +154,7 @@ function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange, onSt
       {/* Title + deadline */}
       <div style={{ padding: '18px 26px 0' }}>
         {goal.id && !goal.id.startsWith('tmp-') ? (
-          <GoalTitle key={goal.id} goalId={goal.id} title={goal.title} as="h2" className="panel-title"
+          <GoalTitle key={goal.id} goalId={goal.id} title={goal.title} targetDate={goal.targetDate} as="h2" className="panel-title"
             onRenamed={t => onRename(goal.id!, t)}
             style={{ font: 'var(--font-goal-title)', color: 'hsl(var(--text-strong))', letterSpacing: '-0.02em', lineHeight: 1.12 }} />
         ) : (

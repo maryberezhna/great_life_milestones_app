@@ -3,6 +3,7 @@
 import { useState, useTransition, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createGoalFromDream } from '@/app/actions/goals';
+import { SmartHint } from './SmartHint';
 import { NewSphereForm, freeSphereColor, type CreatedSphere } from './NewSphereForm';
 import type { ConstellationGoal, ConstellationSphere } from './GoalConstellation';
 
@@ -113,13 +114,16 @@ export function IdeasPanel({ spheres: givenSpheres, onClose, onGoalAdded, onDeco
             border: '1.5px solid hsl(var(--border-subtle))', outline: 'none',
             fontFamily: 'var(--font-sans)', fontSize: 14.5, fontWeight: 500,
             color: 'hsl(var(--text-strong))', background: 'hsl(var(--surface-base))',
-            marginBottom: 12,
+            marginBottom: 0,
             transition: 'border-color .2s ease',
             boxSizing: 'border-box',
           }}
           onFocus={e => { e.currentTarget.style.borderColor = 'hsl(var(--sphere-violet))'; }}
           onBlur={e => { e.currentTarget.style.borderColor = 'hsl(var(--border-subtle))'; }}
         />
+
+        <SmartHint title={title} onAccept={t => { setTitle(t); inputRef.current?.focus(); }} />
+        <div style={{ height: 12 }} />
 
         {/* Sphere selector */}
         <div style={{ marginBottom: 4 }}>

@@ -16,6 +16,7 @@ export interface ConstellationGoal {
   status?: 'active' | 'paused' | 'done';
   blocked?: boolean;
   sphereId?: string;
+  targetDate?: string | null;
   createdAt?: string;
   doneDates?: string[];   // when each finished step was last touched — feeds the living sky
 }

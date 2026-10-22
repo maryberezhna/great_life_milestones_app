@@ -96,6 +96,7 @@ export default async function DashboardPage() {
       status: g.status as 'active' | 'paused' | 'done',
       blocked: g.depends_on_id !== null && activeGoalIds.has(g.depends_on_id),
       sphereId: g.sphere_id,
+      targetDate: g.target_date,
       createdAt: g.created_at,
       doneDates: td.doneDates,
     };

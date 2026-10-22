@@ -123,7 +123,7 @@ export default async function GoalPage({ params }: { params: Promise<{ id: strin
         )}
 
         {/* Goal title */}
-        <GoalTitle goalId={id} title={g.title} as="h1" style={{
+        <GoalTitle goalId={id} title={g.title} targetDate={g.target_date} as="h1" style={{
           fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 24,
           letterSpacing: '-0.02em', color: 'hsl(var(--text-strong))', lineHeight: 1.25,
         }} />
