@@ -219,8 +219,8 @@ export function LivingSky({ goals, spheres, selectedId, onSelect, onMeClick, sty
   } else {
     W = 380;
     const rowH = 60, gap = 30, head = 58;
-    const me = { x: 48, y: 52 };
-    let y = 112, prev = me;
+    const me = { x: W / 2, y: 104 };                               // centred under the floating top bar
+    let y = 150, prev = me;
     groups.forEach((gr, idx) => {
       const h = gr.goals.length * rowH;
       const hub = { x: idx % 2 ? 58 : 30, y: y + head + h / 2 };     // trunk sways left/right
@@ -238,7 +238,7 @@ export function LivingSky({ goals, spheres, selectedId, onSelect, onMeClick, sty
       prev = hub;
       y += head + h + gap;
     });
-    H = Math.max(y, 200);
+    H = Math.max(y + 90, 200);                                      // clear the tab bar
     body.push(<Me key="me" x={me.x} y={me.y} r={24} onClick={onMeClick} />);
   }
 

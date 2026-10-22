@@ -320,3 +320,17 @@
 @media (max-width: 768px) {
   input, textarea, select { font-size: 16px !important; }
 }
+
+/* Phones: side panels slide up from the bottom as sheets */
+@keyframes sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@media (max-width: 768px) {
+  .sheet-panel {
+    position: fixed !important; top: auto !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+    width: 100% !important; height: auto !important; max-height: 88dvh; overflow-y: auto;
+    border-radius: 24px 24px 0 0; z-index: 40 !important;
+    padding-bottom: env(safe-area-inset-bottom);
+    animation: sheet-up .32s cubic-bezier(0.22, 1, 0.36, 1) !important;
+    box-shadow: 0 -12px 40px rgb(0 0 0 / .3) !important;
+  }
+  .sheet-panel::before { content: ''; display: block; width: 40px; height: 5px; border-radius: 9px; background: hsl(var(--border-strong)); margin: 9px auto 0; flex-shrink: 0; }
+}

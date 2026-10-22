@@ -55,7 +55,7 @@ export function IdeasPanel({ spheres, onClose, onGoalAdded, onDecompose }: Props
   }
 
   return (
-    <aside style={{
+    <aside className="sheet-panel" style={{
       position: 'absolute', top: 0, right: 0, height: '100%', width: 400,
       background: 'hsl(var(--surface-card))',
       boxShadow: '-18px 0 48px hsl(28 16% 10% / .18)',

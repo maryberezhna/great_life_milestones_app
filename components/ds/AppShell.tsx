@@ -24,6 +24,34 @@ const HEX_TO_KEY: Record<string, string> = {
   '#EC4899': 'rose',   '#3B82F6': 'blue',
 };
 
+
+// Phone navigation: native-style tab bar instead of the drawer
+const TABS: { href: string; label: string; icon: React.ReactNode; plus?: boolean }[] = [
+  { href: '/dashboard', label: 'Небо', icon: <><circle cx="12" cy="12" r="3.2" fill="currentColor" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2" /></> },
+  { href: '/calendar', label: 'Календар', icon: <><rect x="3.5" y="5" width="17" height="15" rx="3" /><path d="M3.5 10h17M8 3v4M16 3v4" /></> },
+  { href: '/dashboard?add=1', label: 'Додати ціль', plus: true, icon: null },
+  { href: '/report', label: 'Звіт', icon: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /> },
+  { href: '/backlog', label: 'Мрії', icon: <path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z" /> },
+];
+
+function TabBar({ pathname }: { pathname: string }) {
+  return (
+    <nav className="tabbar" aria-label="Розділи">
+      {TABS.map(t => {
+        const on = !t.plus && (t.href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(t.href));
+        return (
+          <Link key={t.href} href={t.href} className={`tab${on ? ' on' : ''}${t.plus ? ' plus' : ''}`} aria-label={t.label}>
+            {t.plus ? <span className="tab-plus">+</span> : (
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{t.icon}</svg>
+            )}
+            {!t.plus && <span>{t.label}</span>}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
 export function AppShell({ nav, spheres, userEmail, children }: Props) {
   const pathname = usePathname();
   const router = useRouter();
@@ -273,7 +301,20 @@ export function AppShell({ nav, spheres, userEmail, children }: Props) {
         {children}
       </main>
 
+      <TabBar pathname={pathname} />
+
       <style>{`
+        .tabbar {
+          display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+          grid-template-columns: repeat(5, 1fr); align-items: center;
+          padding: 6px 10px calc(6px + env(safe-area-inset-bottom));
+          background: rgb(22 21 32 / .82); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+          border-top: 1px solid rgb(255 255 255 / .07);
+        }
+        .tab { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 4px 0; text-decoration: none; color: #8d89a6; font: 600 10.5px var(--font-sans); -webkit-tap-highlight-color: transparent; }
+        .tab.on { color: #fff; }
+        .tab-plus { width: 50px; height: 50px; border-radius: 17px; display: grid; place-items: center; color: #fff; font: 400 30px/1 var(--font-sans);
+          background: linear-gradient(140deg, #8b5cf6, #6d28d9); box-shadow: 0 8px 22px -6px #7c3aed; margin-top: -16px; }
         /* Phone browsers: 100vh includes the hidden toolbar, dvh does not */
         @supports (height: 100dvh) { .app-root { height: 100dvh !important; } }
         @media (max-width: 768px) {
@@ -291,8 +332,10 @@ export function AppShell({ nav, spheres, userEmail, children }: Props) {
             transform: translateX(0);
           }
           .mobile-overlay { display: block !important; }
+          .app-main { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+          .tabbar { display: grid !important; }
           .mobile-header {
-            display: flex !important;
+            display: none !important;
             align-items: center;
             justify-content: space-between;
             border-bottom: 1px solid hsl(var(--border-subtle));

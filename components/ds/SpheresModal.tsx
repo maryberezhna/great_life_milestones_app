@@ -103,7 +103,7 @@ export function SpheresModal({ spheres, onClose }: Props) {
   const colorKey = (hex: string) => HEX_TO_KEY[hex] ?? 'violet';
 
   return (
-    <aside style={{
+    <aside className="sheet-panel" style={{
       position: 'absolute', top: 0, right: 0, height: '100%', width: 400,
       background: 'hsl(var(--surface-card))',
       boxShadow: '-18px 0 48px hsl(28 16% 10% / .18)',

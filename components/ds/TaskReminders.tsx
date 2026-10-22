@@ -78,7 +78,7 @@ export function TaskReminders() {
   if (dismissed || todayTasks.length === 0) return null;
 
   return (
-    <div style={{
+    <div className="today-card" style={{
       position: 'fixed', bottom: 'max(24px, env(safe-area-inset-bottom))', right: 24, zIndex: 100,
       background: 'hsl(var(--surface-card))',
       border: '1px solid hsl(var(--border-subtle))',
@@ -146,6 +146,7 @@ export function TaskReminders() {
       </div>
 
       <style>{`
+        @media (max-width: 768px) { .today-card { bottom: calc(76px + env(safe-area-inset-bottom)) !important; right: 12px !important; left: 12px; max-width: none !important; } }
         @keyframes slide-up {
           from { opacity: 0; transform: translateY(12px); }
           to { opacity: 1; transform: translateY(0); }

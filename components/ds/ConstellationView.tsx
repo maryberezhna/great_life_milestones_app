@@ -3,6 +3,7 @@
 import { useRef, useEffect, useState, useTransition } from 'react';
 import React from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ConstellationGoal, ConstellationSphere } from './GoalConstellation';
 import { LivingSky } from './LivingSky';
 import { StatsPanel } from './StatsPanel';
@@ -111,7 +112,7 @@ function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange, onSt
   }
 
   return (
-    <aside style={{
+    <aside className="sheet-panel" style={{
       position: 'absolute', top: 0, right: 0, height: '100%', width: 'min(432px, 100%)',
       background: 'hsl(var(--surface-card))',
       boxShadow: '-18px 0 48px hsl(28 16% 10% / .16)',
@@ -433,6 +434,15 @@ export function ConstellationView({ goals: initialGoals, spheres }: Props) {
   const [view, setView] = useState<View>('all');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [ideasOpen, setIdeasOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const router = useRouter();
+  // the phone tab bar's «+» lands here as /dashboard?add=1
+  const addFromTab = useSearchParams().get('add') === '1';
+  const showIdeas = ideasOpen || addFromTab;
+  function closeIdeas() {
+    setIdeasOpen(false);
+    if (addFromTab) router.replace('/dashboard');
+  }
   const [spheresOpen, setSpheresOpen] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
 
@@ -515,6 +525,22 @@ export function ConstellationView({ goals: initialGoals, spheres }: Props) {
       <style>{`
         @keyframes panelIn { from { transform: translateX(30px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         @media (prefers-reduced-motion: reduce) { aside { animation: none !important; } }
+        .m-topbar { display: none; }
+        @media (max-width: 768px) {
+          .dash-header { display: none !important; }
+          .m-topbar { display: flex; align-items: center; gap: 8px; position: absolute; top: 0; left: 0; right: 0; z-index: 6;
+            padding: calc(env(safe-area-inset-top) + 10px) 14px 18px;
+            background: linear-gradient(#12111a 0%, rgb(18 17 26 / .86) 62%, transparent); }
+          .m-topbar b { margin-right: auto; font: 800 21px var(--font-sans); letter-spacing: -.02em; color: #fff; }
+          .m-topbar select, .m-more { appearance: none; -webkit-appearance: none; height: 34px; border-radius: 99px; border: 1px solid rgb(255 255 255 / .1);
+            background: rgb(255 255 255 / .09); color: #e9e5f7; font: 600 13px var(--font-sans) !important; }
+          .m-topbar select { padding: 0 28px 0 13px; background-image: linear-gradient(45deg, transparent 50%, #e9e5f7 50%), linear-gradient(135deg, #e9e5f7 50%, transparent 50%);
+            background-position: right 14px top 15px, right 9px top 15px; background-size: 5px 5px; background-repeat: no-repeat; }
+          .m-more { width: 34px; font-size: 18px !important; line-height: 1; }
+          .m-menu { position: absolute; top: calc(env(safe-area-inset-top) + 50px); right: 14px; min-width: 170px; border-radius: 14px; overflow: hidden;
+            background: hsl(var(--surface-card)); box-shadow: 0 12px 30px rgb(0 0 0 / .35); display: flex; flex-direction: column; }
+          .m-menu > * { padding: 13px 16px; border: 0; background: none; text-align: left; font: 600 15px var(--font-sans); color: hsl(var(--text-strong)); text-decoration: none; border-bottom: 1px solid hsl(var(--border-subtle)); }
+        }
         @media (max-width: 820px) {
           .dash-header { flex-wrap: wrap; padding: 10px 14px !important; gap: 10px !important; }
           .dash-head-left { width: 100%; justify-content: space-between; gap: 10px !important; }
@@ -630,6 +656,22 @@ export function ConstellationView({ goals: initialGoals, spheres }: Props) {
           style={{ width: '100%', height: '100%' }}
         />
 
+        {/* Phone: one slim bar floating over the sky */}
+        <div className="m-topbar">
+          <b>Мій простір</b>
+          <select value={view} onChange={e => setView(e.target.value as View)} aria-label="Які цілі показати">
+            {VIEWS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+          <button onClick={() => setMenuOpen(o => !o)} aria-label="Ще" className="m-more">⋯</button>
+          {menuOpen && (
+            <div className="m-menu" onClick={() => setMenuOpen(false)}>
+              <button onClick={() => { setSpheresOpen(true); setSelectedId(undefined); }}>Сфери</button>
+              <Link href="/print" target="_blank">Версія А4</Link>
+              <button onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? 'Світла тема' : 'Темна тема'}</button>
+            </div>
+          )}
+        </div>
+
         {/* «Я» → my rhythm */}
         {statsOpen && (
           <div onClick={() => setStatsOpen(false)} style={{
@@ -684,8 +726,8 @@ export function ConstellationView({ goals: initialGoals, spheres }: Props) {
         )}
 
         {/* Ideas scrim */}
-        {ideasOpen && (
-          <div onClick={() => setIdeasOpen(false)} style={{
+        {showIdeas && (
+          <div onClick={closeIdeas} style={{
             position: 'absolute', inset: 0,
             background: 'hsl(28 16% 10% / .10)',
             backdropFilter: 'blur(1px)',
@@ -694,10 +736,10 @@ export function ConstellationView({ goals: initialGoals, spheres }: Props) {
         )}
 
         {/* Add goal panel */}
-        {ideasOpen && (
+        {showIdeas && (
           <IdeasPanel
             spheres={spheres}
-            onClose={() => setIdeasOpen(false)}
+            onClose={closeIdeas}
             onGoalAdded={handleGoalAdded}
             onDecompose={handleDecomposeFromPanel}
           />

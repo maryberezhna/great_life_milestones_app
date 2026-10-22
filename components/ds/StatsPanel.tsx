@@ -58,7 +58,7 @@ export function StatsPanel({ goals, spheres, onClose }: Props) {
   ];
 
   return (
-    <aside style={{
+    <aside className="sheet-panel" style={{
       position: 'absolute', top: 0, right: 0, height: '100%', width: 'min(432px, 100%)',
       background: 'hsl(var(--surface-card))', boxShadow: '-18px 0 48px hsl(28 16% 10% / .16)',
       zIndex: 19, display: 'flex', flexDirection: 'column', overflowY: 'auto',
