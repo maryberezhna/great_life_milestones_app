@@ -7,7 +7,10 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 export interface AiStep {
   specific: string;
   deadline: string; // YYYY-MM-DD
+  time: string | null; // HH:MM — suggested time of day
 }
+
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 export async function decomposeWithAI(
   goalTitle: string,
@@ -31,6 +34,10 @@ export async function decomposeWithAI(
 - Описує РЕЗУЛЬТАТ, а не процес — що буде зроблено, а не як
 - Максимум 6–8 слів, без зайвих деталей і пояснень
 - Дедлайн реалістичний, кроки рівномірно розподілені від сьогодні
+- Час (time) — коли цей крок зручно зробити того дня, у форматі HH:MM:
+  дзвінки, записи, установи, лікарі — у робочі години 10:00–16:00;
+  спорт — 07:30 або 19:00; навчання, читання, планування — 20:00–21:00;
+  покупки й справи вдома — 11:00; творчі й сімейні справи — 17:00–18:00
 
 Кращий формат — через досягнення (що буде ВИКОНАНО):
 ✓ "Пройти консультацію ортодонта"
@@ -40,7 +47,7 @@ export async function decomposeWithAI(
 ✗ НЕ: "Записатися та відвідати консультацію ортодонта для отримання рекомендацій"
 
 Поверни ТІЛЬКИ JSON-масив, без markdown:
-[{"specific": "...", "deadline": "YYYY-MM-DD"}, ...]`,
+[{"specific": "...", "deadline": "YYYY-MM-DD", "time": "HH:MM"}, ...]`,
       },
     ],
   });
@@ -54,5 +61,6 @@ export async function decomposeWithAI(
   return steps.slice(0, 5).map(s => ({
     specific: String(s.specific ?? ''),
     deadline: String(s.deadline ?? ''),
+    time: TIME_RE.test(String(s.time ?? '')) ? String(s.time) : null,
   }));
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { generateIcs, downloadIcs, type IcsEvent } from '@/lib/ics';
+import { generateIcs, downloadIcs, gCalUrl, type IcsEvent } from '@/lib/ics';
 
 interface Props {
   events: IcsEvent[];
@@ -31,10 +31,7 @@ export function CalendarSyncMenu({ events, label = 'Синхронізувати
     // if there's only 1 event open direct URL
     if (events.length === 1) {
       const e = events[0];
-      const url = 'https://calendar.google.com/calendar/render?action=TEMPLATE'
-        + '&text='    + encodeURIComponent(e.title)
-        + '&dates='   + e.date.replace(/-/g, '') + 'T090000/' + e.date.replace(/-/g, '') + 'T100000'
-        + '&details=' + encodeURIComponent(e.description ?? '');
+      const url = gCalUrl(e.title, e.date, e.time ?? '09:00', e.description ?? '', e.rrule);
       window.open(url, '_blank', 'noopener');
     } else {
       downloadIcs(generateIcs(events), 'planning-tasks.ics');
