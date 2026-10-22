@@ -2,7 +2,9 @@ import Link from 'next/link';
 import { suggestTime } from '@/lib/suggest-time';
 import { createClient } from '@/lib/supabase/server';
 import { getRequiredUserId } from '@/lib/auth';
-import { CalendarSyncMenu } from '@/components/ds/CalendarSyncMenu';
+import { AddToCalendarButton } from '@/components/ds/AddToCalendarButton';
+import { CalendarConnect } from '@/components/ds/CalendarConnect';
+import { getCalendarSettings } from '@/app/actions/calendar';
 import type { IcsEvent } from '@/lib/ics';
 
 const DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'];
@@ -28,11 +30,12 @@ function getCalendarDays(year: number, month: number) {
 export default async function CalendarPage({
   searchParams,
 }: {
-  searchParams: Promise<{ year?: string; month?: string }>;
+  searchParams: Promise<{ year?: string; month?: string; google?: string; connect?: string }>;
 }) {
   const userId = await getRequiredUserId();
   const supabase = await createClient();
   const sp = await searchParams;
+  const calendarSettings = await getCalendarSettings();
 
   const now = new Date();
   const year  = sp.year  ? parseInt(sp.year)  : now.getFullYear();
@@ -129,13 +132,15 @@ export default async function CalendarPage({
                 time: t.start_time ?? suggestTime(t.specific),
                 description: `Ціль: ${(t.plan_goals as any)?.title ?? ''}`,
               }));
-            return <CalendarSyncMenu events={icsEvents} label="Додати в календар" />;
+            return <AddToCalendarButton inline events={icsEvents} label="Додати місяць у календар" />;
           })()}
         </div>
       </div>
 
       <div className="cal-body" style={{ flex: 1, overflowY: 'auto', padding: '24px 32px' }}>
         <div style={{ maxWidth: 760 }}>
+          <CalendarConnect settings={calendarSettings} googleStatus={sp.google} highlight={sp.connect === '1'} />
+
           {/* Day headers */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 4, marginBottom: 4 }}>
             {DAYS.map(d => (

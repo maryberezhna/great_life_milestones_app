@@ -44,7 +44,8 @@ export interface TaskInput {
   recurrence?: 'none' | 'daily' | 'weekdays' | 'weekly' | 'monthly';
 }
 
-export async function createTasks(goalId: string, tasks: TaskInput[]) {
+// returns the new steps' ids, in the order given
+export async function createTasks(goalId: string, tasks: TaskInput[]): Promise<string[]> {
   const userId = await getRequiredUserId();
   const supabase = await createClient();
   const rows = tasks
@@ -58,8 +59,9 @@ export async function createTasks(goalId: string, tasks: TaskInput[]) {
       start_time: t.time || null,
       status: 'active' as const,
     }));
-  const { error } = await supabase.from('plan_tasks').insert(rows);
+  const { data, error } = await supabase.from('plan_tasks').insert(rows).select('id');
   if (error) throw new Error(error.message);
+  return (data ?? []).map(r => r.id as string);
 }
 
 export async function setTaskTime(taskId: string, time: string | null): Promise<void> {

@@ -2,11 +2,34 @@ import { google } from 'googleapis';
 import { createAdminClient } from './supabase/admin';
 import { decrypt, encrypt } from './crypto';
 
-function createOAuth2() {
+export const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.events';
+
+export function createOAuth2(redirectUri?: string) {
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID!,
     process.env.GOOGLE_CLIENT_SECRET!,
+    redirectUri,
   );
+}
+
+// everything Google push needs on the server: OAuth client, token encryption, service role
+export function isGoogleConfigured(): boolean {
+  return !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+    && process.env.TOKEN_ENCRYPTION_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY);
+}
+
+export async function hasGoogleCredentials(userId: string): Promise<boolean> {
+  if (!isGoogleConfigured()) return false;
+  const { count } = await createAdminClient()
+    .from('google_calendar_credentials')
+    .select('user_id', { count: 'exact', head: true })
+    .eq('user_id', userId);
+  return (count ?? 0) > 0;
+}
+
+export async function deleteGoogleCredentials(userId: string): Promise<void> {
+  if (!isGoogleConfigured()) return;
+  await createAdminClient().from('google_calendar_credentials').delete().eq('user_id', userId);
 }
 
 export async function getGoogleClientForUser(userId: string) {

@@ -4,6 +4,7 @@ import { useState, useTransition, useLayoutEffect, useRef, useEffect } from 'rea
 import { createTasks, getUsualTime } from '@/app/actions/tasks';
 import { suggestTime } from '@/lib/suggest-time';
 import { decomposeWithAI } from '@/app/actions/decompose';
+import { AddToCalendarButton } from './AddToCalendarButton';
 import type { ConstellationGoal, ConstellationSphere } from './GoalConstellation';
 
 type Recurrence = 'none' | 'daily' | 'weekdays' | 'weekly' | 'monthly';
@@ -91,22 +92,6 @@ function pluralKrok(n: number) {
   return `${n} кроків`;
 }
 
-function gCalUrl(title: string, date: string, time: string, goalTitle: string, recurrence: Recurrence) {
-  const [h, m] = time.split(':').map(Number);
-  const endH = String((h + 1) % 24).padStart(2, '0');
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const start = date.replace(/-/g, '') + 'T' + pad(h) + pad(m) + '00';
-  const end   = date.replace(/-/g, '') + 'T' + endH + pad(m) + '00';
-  const rrule = RECURRENCE_OPTIONS.find(r => r.value === recurrence)?.rrule ?? '';
-  return (
-    'https://calendar.google.com/calendar/render?action=TEMPLATE' +
-    '&text=' + encodeURIComponent(title) +
-    '&dates=' + start + '/' + end +
-    '&details=' + encodeURIComponent('Крок до цілі: ' + goalTitle) +
-    (rrule ? '&recur=' + encodeURIComponent(rrule) : '')
-  );
-}
-
 async function scheduleNotification(title: string, deadline: string, time: string) {
   if (!('Notification' in window)) return;
   await Notification.requestPermission();
@@ -127,6 +112,7 @@ export function DecomposeModal({ goal, spheres, onClose }: Props) {
 
   const [isAiPending, startAiTransition] = useTransition();
   const [isSavePending, startSaveTransition] = useTransition();
+  const [savedIds, setSavedIds] = useState<string[]>([]);
 
   const sp   = spheres.find(s => s.key === goal.sphere);
   const col  = `hsl(var(--sphere-${goal.sphere}))`;
@@ -168,12 +154,13 @@ export function DecomposeModal({ goal, spheres, onClose }: Props) {
 
   function handleSave() {
     startSaveTransition(async () => {
-      await createTasks(goal.id ?? '', valid.map(t => ({
+      const ids = await createTasks(goal.id ?? '', valid.map(t => ({
         specific: (t.specific.trim() + (t.link ? ' ' + t.link : '')).trim(),
         deadline: t.deadline || undefined,
         time: t.deadline ? t.calendarTime : undefined,
         recurrence: t.recurrence,
       })));
+      setSavedIds(ids);
       // remind for: manual reminder toggle OR recurring tasks with a deadline
       for (const t of valid.filter(t => (t.reminder || t.recurrence !== 'none') && t.deadline)) {
         try { await scheduleNotification(t.specific.trim(), t.deadline, t.calendarTime); } catch { /* ignore */ }
@@ -717,29 +704,11 @@ export function DecomposeModal({ goal, spheres, onClose }: Props) {
                           до {new Date(t.deadline + 'T12:00').toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' })}
                         </div>
                       )}
-                      {(t.reminder || (t.calendar && t.deadline)) && (
+                      {t.reminder && (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 8 }}>
-                          {t.reminder && (
-                            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, color: col, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                              🔔 нагадування заплановано
-                            </span>
-                          )}
-                          {t.calendar && t.deadline && (
-                            <a
-                              href={gCalUrl(t.specific, t.deadline, t.calendarTime, goal.title ?? '', t.recurrence)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{
-                                fontFamily: 'var(--font-sans)', fontSize: 12.5, color: col,
-                                fontWeight: 600, textDecoration: 'none',
-                                display: 'inline-flex', alignItems: 'center', gap: 4,
-                              }}
-                            >
-                              📅 {t.recurrence !== 'none'
-                                ? `Додати як повторювану подію (${RECURRENCE_OPTIONS.find(r => r.value === t.recurrence)?.label?.toLowerCase()}) →`
-                                : 'Додати в Google Calendar →'}
-                            </a>
-                          )}
+                          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, color: col, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            🔔 нагадування заплановано
+                          </span>
                         </div>
                       )}
                     </div>
@@ -747,6 +716,27 @@ export function DecomposeModal({ goal, spheres, onClose }: Props) {
                   );
                 })}
               </div>
+
+              {/* steps marked 📅 → the calendar connected in «Календар» */}
+              {(() => {
+                const events = valid
+                  .map((t, i) => ({ t, id: savedIds[i] }))
+                  .filter(({ t, id }) => t.calendar && t.deadline && id)
+                  .map(({ t, id }) => ({
+                    uid: id,
+                    title: t.specific.trim(),
+                    date: t.deadline,
+                    time: t.calendarTime,
+                    description: `Крок до цілі: ${goal.title ?? ''}`,
+                    rrule: RECURRENCE_OPTIONS.find(r => r.value === t.recurrence)?.rrule || undefined,
+                  }));
+                return events.length > 0 && (
+                  <div style={{ marginTop: 14 }}>
+                    <AddToCalendarButton color={col} events={events}
+                      label={`Додати ${events.length === 1 ? 'крок' : pluralKrok(events.length)} в календар`} />
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>
