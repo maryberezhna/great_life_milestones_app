@@ -11,6 +11,7 @@ interface Props {
   spheres: ConstellationSphere[];
   selectedId?: string | null;
   onSelect?: (goal: ConstellationGoal) => void;
+  onMeClick?: () => void;
   style?: React.CSSProperties;
 }
 
@@ -18,7 +19,7 @@ const DAY = 86_400_000;
 const NIGHT = '#12111a';
 const QUIET = '#5b5872';
 
-function plural(n: number, one: string, few: string, many: string) {
+export function plural(n: number, one: string, few: string, many: string) {
   if (n % 10 === 1 && n % 100 !== 11) return one;
   if (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) return few;
   return many;
@@ -26,9 +27,9 @@ function plural(n: number, one: string, few: string, many: string) {
 const tyzh = (n: number) => `${n} ${plural(n, 'тиждень', 'тижні', 'тижнів')}`;
 const kroky = (n: number) => `${n} ${plural(n, 'крок', 'кроки', 'кроків')}`;
 
-function weeksAgo(d: string, now: number) { return Math.max(0, Math.floor((now - new Date(d).getTime()) / (7 * DAY))); }
+export function weeksAgo(d: string, now: number) { return Math.max(0, Math.floor((now - new Date(d).getTime()) / (7 * DAY))); }
 // each step adds light that fades over ~3 weeks
-function energy(dates: string[], now: number) {
+export function energy(dates: string[], now: number) {
   return Math.min(1, dates.reduce((a, d) => a + 0.45 * Math.exp(-(now - new Date(d).getTime()) / DAY / 21), 0));
 }
 const mix = (c: string, e: number) => `color-mix(in srgb, ${c} ${Math.round(35 + e * 65)}%, ${QUIET})`;
@@ -131,8 +132,9 @@ function SphereNode({ group, hub, anchor, dx, dy, now }: {
   </>);
 }
 
-function Me({ x, y, r }: { x: number; y: number; r: number }) {
-  return (<>
+function Me({ x, y, r, onClick }: { x: number; y: number; r: number; onClick?: () => void }) {
+  return (<g className="sky-me" onClick={onClick} role="button" aria-label="Моя статистика" style={{ cursor: onClick ? 'pointer' : undefined }}>
+    <title>Моя статистика</title>
     <defs>
       <radialGradient id="sky-sun" cx=".4" cy=".35">
         <stop offset="0" stopColor="#fff" /><stop offset=".5" stopColor="#ece6ff" /><stop offset="1" stopColor="#c3b3ff" />
@@ -142,7 +144,7 @@ function Me({ x, y, r }: { x: number; y: number; r: number }) {
     <circle cx={x} cy={y} r={r * 1.5} fill="#a28cff" fillOpacity={0.1} />
     <circle cx={x} cy={y} r={r} fill="url(#sky-sun)" />
     <text x={x} y={y + r * 0.24} textAnchor="middle" style={{ font: `800 ${Math.round(r * 0.7)}px ${sans}`, fill: '#1b1930' }}>Я</text>
-  </>);
+  </g>);
 }
 
 // same faint stars on every render (seeded)
@@ -157,7 +159,7 @@ function Background({ w, h }: { w: number; h: number }) {
   return <>{stars.map((s, i) => <circle key={i} cx={s.x} cy={s.y} r={s.r} fill="#fff" fillOpacity={s.o} />)}</>;
 }
 
-export function LivingSky({ goals, spheres, selectedId, onSelect, style }: Props) {
+export function LivingSky({ goals, spheres, selectedId, onSelect, onMeClick, style }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [narrow, setNarrow] = useState(false);
   const [now] = useState(() => Date.now());
@@ -211,7 +213,7 @@ export function LivingSky({ goals, spheres, selectedId, onSelect, style }: Props
       });
     };
     side(L, -1); side(R, 1);
-    body.push(<Me key="me" x={me.x} y={me.y} r={34} />);
+    body.push(<Me key="me" x={me.x} y={me.y} r={34} onClick={onMeClick} />);
   } else {
     W = 380;
     const rowH = 60, gap = 30, head = 58;
@@ -235,7 +237,7 @@ export function LivingSky({ goals, spheres, selectedId, onSelect, style }: Props
       y += head + h + gap;
     });
     H = Math.max(y, 200);
-    body.push(<Me key="me" x={me.x} y={me.y} r={24} />);
+    body.push(<Me key="me" x={me.x} y={me.y} r={24} onClick={onMeClick} />);
   }
 
   return (
@@ -246,6 +248,7 @@ export function LivingSky({ goals, spheres, selectedId, onSelect, style }: Props
       <style>{`
         @keyframes sky-tw { 0%,100% { opacity: 1; } 50% { opacity: .55; } }
         .sky-twinkle { animation: sky-tw 3s ease-in-out infinite; }
+        .sky-me { transition: filter .2s; } .sky-me:hover { filter: brightness(1.12) drop-shadow(0 0 10px rgb(190 170 255 / .6)); }
         @media (prefers-reduced-motion: reduce) { .sky-twinkle { animation: none; } }
       `}</style>
       {groups.length === 0 ? (
