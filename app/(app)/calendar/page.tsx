@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { suggestTime } from '@/lib/suggest-time';
 import { createClient } from '@/lib/supabase/server';
 import { getRequiredUserId } from '@/lib/auth';
 import { CalendarSyncMenu } from '@/components/ds/CalendarSyncMenu';
@@ -54,7 +55,7 @@ export default async function CalendarPage({
   const { data: tasks } = await supabase
     .from('plan_tasks')
     .select(`
-      id, specific, deadline, status, calendar_event_id,
+      id, specific, deadline, status, calendar_event_id, start_time,
       plan_goals!inner(id, title, sphere_id, spheres!inner(id, name, color, icon))
     `)
     .eq('user_id', userId)
@@ -125,6 +126,7 @@ export default async function CalendarPage({
                 uid: t.id,
                 title: t.specific,
                 date: t.deadline!.slice(0, 10),
+                time: t.start_time ?? suggestTime(t.specific),
                 description: `Ціль: ${(t.plan_goals as any)?.title ?? ''}`,
               }));
             return <CalendarSyncMenu events={icsEvents} label="Додати в календар" />;
@@ -214,7 +216,7 @@ export default async function CalendarPage({
                   const sphere = Array.isArray(t.plan_goals?.spheres) ? t.plan_goals.spheres[0] : t.plan_goals?.spheres;
                   const k = HEX_TO_KEY[sphere?.color ?? ''] ?? 'violet';
                   const accent = `hsl(var(--sphere-${k}))`;
-                  const d = new Date(t.deadline!).toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' });
+                  const d = new Date(t.deadline!).toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' }) + (t.start_time ? ` · ${t.start_time}` : '');
                   return (
                     <div key={t.id} style={{
                       display: 'flex', alignItems: 'center', gap: 12,

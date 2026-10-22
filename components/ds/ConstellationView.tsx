@@ -8,10 +8,11 @@ import { ConstellationGoal, ConstellationSphere } from './GoalConstellation';
 import { LivingSky } from './LivingSky';
 import { StatsPanel } from './StatsPanel';
 import { DecomposeModal } from './DecomposeModal';
-import { getGoalTasks, toggleTaskDone, type GoalTask } from '@/app/actions/tasks';
+import { getGoalTasks, toggleTaskDone, setTaskTime, type GoalTask } from '@/app/actions/tasks';
 import { setGoalStatus } from '@/app/actions/goals';
 import { CalendarSyncMenu } from './CalendarSyncMenu';
 import { generateIcs, downloadIcs, type IcsEvent } from '@/lib/ics';
+import { suggestTime } from '@/lib/suggest-time';
 
 const RRULES: Record<string, string> = {
   daily: 'RRULE:FREQ=DAILY', weekdays: 'RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR',
@@ -83,7 +84,7 @@ function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange, onSt
     // open steps dated today or later — past-dated ones would land (or start repeating) in the past
     .filter(t => t.deadline && t.status !== 'done' && t.status !== 'irrelevant'
       && t.deadline.slice(0, 10) >= new Date().toISOString().slice(0, 10))
-    .map(t => ({ uid: t.id, title: t.specific, date: t.deadline!.slice(0, 10), description: `Ціль: ${goal.title}`, rrule: RRULES[t.recurrence] }));
+    .map(t => ({ uid: t.id, title: t.specific, date: t.deadline!.slice(0, 10), time: t.start_time ?? suggestTime(t.specific), description: `Ціль: ${goal.title}`, rrule: RRULES[t.recurrence] }));
   const [completing, setCompleting] = useState(false);
 
   const isDoneGoal = goal.status === 'done';
@@ -287,6 +288,26 @@ function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange, onSt
                       до {dl}
                     </span>
                   )}
+                  {t.deadline && !isDone && (
+                    <input
+                      type="time"
+                      aria-label="Час кроку"
+                      title={t.start_time ? 'Час кроку' : 'Запропонований час — змініть, щоб зберегти свій'}
+                      value={t.start_time ?? suggestTime(t.specific)}
+                      onClick={e => e.stopPropagation()}
+                      onChange={e => {
+                        const time = e.target.value || null;
+                        setTasks(ts => ts.map(x => x.id === t.id ? { ...x, start_time: time } : x));
+                        setTaskTime(t.id, time).catch(() => {});
+                      }}
+                      style={{
+                        fontFamily: 'var(--font-mono)', fontSize: 11.5, fontWeight: 600,
+                        border: `1px ${t.start_time ? 'solid' : 'dashed'} ${t.start_time ? col + '55' : 'hsl(var(--border-strong))'}`, borderRadius: 7,
+                        padding: '1px 6px', background: t.start_time ? soft : 'transparent',
+                        color: t.start_time ? col : 'hsl(var(--text-muted))', outline: 'none',
+                      }}
+                    />
+                  )}
                   {t.recurrence !== 'none' && (
                     <span style={{
                       fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
@@ -303,6 +324,7 @@ function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange, onSt
                           uid: t.id,
                           title: t.specific,
                           date: t.deadline.slice(0, 10),
+                          time: t.start_time ?? suggestTime(t.specific),
                           description: `Ціль: ${goal.title}`,
                           rrule: RRULES[t.recurrence],
                         }]}

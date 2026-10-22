@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useTransition, useLayoutEffect, useRef } from 'react';
-import { createTasks } from '@/app/actions/tasks';
+import { useState, useTransition, useLayoutEffect, useRef, useEffect } from 'react';
+import { createTasks, getUsualTime } from '@/app/actions/tasks';
+import { suggestTime } from '@/lib/suggest-time';
 import { decomposeWithAI } from '@/app/actions/decompose';
 import type { ConstellationGoal, ConstellationSphere } from './GoalConstellation';
 
@@ -23,6 +24,7 @@ interface TaskDraft {
   reminder: boolean;
   calendar: boolean;
   calendarTime: string;
+  timeTouched: boolean;   // picked by hand → stop suggesting
   recurrence: Recurrence;
 }
 
@@ -51,9 +53,9 @@ interface Props {
   onClose: () => void;
 }
 
-function mkDraft(specific = '', deadline = ''): TaskDraft {
+function mkDraft(specific = '', deadline = '', time = '09:00'): TaskDraft {
   const extracted = extractLink(specific);
-  return { id: Math.random().toString(36).slice(2), ...extracted, deadline, reminder: false, calendar: false, calendarTime: '09:00', recurrence: 'none' };
+  return { id: Math.random().toString(36).slice(2), ...extracted, deadline, reminder: false, calendar: false, calendarTime: time, timeTouched: false, recurrence: 'none' };
 }
 
 function AutoTextarea({ value, onChange, placeholder, style, className }: {
@@ -105,11 +107,11 @@ function gCalUrl(title: string, date: string, time: string, goalTitle: string, r
   );
 }
 
-async function scheduleNotification(title: string, deadline: string) {
+async function scheduleNotification(title: string, deadline: string, time: string) {
   if (!('Notification' in window)) return;
   await Notification.requestPermission();
   if (Notification.permission !== 'granted') return;
-  const ms = new Date(deadline + 'T09:00').getTime() - Date.now();
+  const ms = new Date(deadline + 'T' + time).getTime() - Date.now();
   if (ms > 0 && ms < 2_147_483_647) {
     setTimeout(() => new Notification('Нагадування', { body: title, icon: '/favicon.ico' }), ms);
   }
@@ -119,6 +121,9 @@ export function DecomposeModal({ goal, spheres, onClose }: Props) {
   const [step, setStep] = useState<Step>(1);
   const [tasks, setTasks] = useState<TaskDraft[]>([mkDraft()]);
   const [aiError, setAiError] = useState<string | null>(null);
+  // default time for new steps: the one picked most often so far
+  const [usualTime, setUsualTime] = useState('09:00');
+  useEffect(() => { getUsualTime().then(setUsualTime).catch(() => {}); }, []);
 
   const [isAiPending, startAiTransition] = useTransition();
   const [isSavePending, startSaveTransition] = useTransition();
@@ -128,14 +133,20 @@ export function DecomposeModal({ goal, spheres, onClose }: Props) {
   const soft = `hsl(var(--sphere-${goal.sphere}-soft))`;
 
   function update(id: string, patch: Partial<TaskDraft>) {
-    setTasks(ts => ts.map(t => t.id === id ? { ...t, ...patch } : t));
+    setTasks(ts => ts.map(t => {
+      if (t.id !== id) return t;
+      const next = { ...t, ...patch };
+      // while the time wasn't picked by hand, follow the step's wording
+      if (patch.specific !== undefined && !next.timeTouched) next.calendarTime = suggestTime(next.specific, usualTime);
+      return next;
+    }));
   }
 
   const valid = tasks.filter(t => t.specific.trim());
   const canSave = valid.length > 0;
 
   function handleManual() {
-    setTasks([mkDraft()]);
+    setTasks([mkDraft('', '', usualTime)]);
     setAiError(null);
     setStep(2);
   }
@@ -146,7 +157,7 @@ export function DecomposeModal({ goal, spheres, onClose }: Props) {
     startAiTransition(async () => {
       try {
         const steps = await decomposeWithAI(goal.title ?? '', sp?.name ?? '', today);
-        setTasks(steps.map(s => mkDraft(s.specific, s.deadline)));
+        setTasks(steps.map(s => ({ ...mkDraft(s.specific, s.deadline, s.time ?? suggestTime(s.specific, usualTime)), timeTouched: !!s.time })));
         setStep(2);
       } catch (e) {
         console.error('[DecomposeModal] AI error:', e);
@@ -160,11 +171,12 @@ export function DecomposeModal({ goal, spheres, onClose }: Props) {
       await createTasks(goal.id ?? '', valid.map(t => ({
         specific: (t.specific.trim() + (t.link ? ' ' + t.link : '')).trim(),
         deadline: t.deadline || undefined,
+        time: t.deadline ? t.calendarTime : undefined,
         recurrence: t.recurrence,
       })));
       // remind for: manual reminder toggle OR recurring tasks with a deadline
       for (const t of valid.filter(t => (t.reminder || t.recurrence !== 'none') && t.deadline)) {
-        try { await scheduleNotification(t.specific.trim(), t.deadline); } catch { /* ignore */ }
+        try { await scheduleNotification(t.specific.trim(), t.deadline, t.calendarTime); } catch { /* ignore */ }
       }
       setStep(3);
     });
@@ -515,6 +527,18 @@ export function DecomposeModal({ goal, spheres, onClose }: Props) {
                         </div>
 
                         {t.deadline && <>
+                          {/* Time — suggested (AI or usual), editable */}
+                          <input
+                            type="time"
+                            aria-label="Час"
+                            value={t.calendarTime}
+                            onChange={e => update(t.id, { calendarTime: e.target.value, timeTouched: true })}
+                            style={{
+                              fontFamily: '-apple-system, var(--font-mono)', fontSize: 13, fontWeight: 600,
+                              border: `1px solid ${col}44`, borderRadius: 8,
+                              padding: '2px 7px', background: soft, color: col, outline: 'none',
+                            }}
+                          />
                           <span style={{ color: 'rgba(60,60,67,.18)', fontSize: 14 }}>|</span>
 
                           {/* Reminder toggle */}
@@ -550,20 +574,6 @@ export function DecomposeModal({ goal, spheres, onClose }: Props) {
                       {/* Calendar expanded: time + recurrence */}
                       {t.calendar && t.deadline && (
                         <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ fontFamily: '-apple-system, var(--font-sans)', fontSize: 13, color: '#8E8E93' }}>Час:</span>
-                            <input
-                              type="time"
-                              value={t.calendarTime}
-                              onChange={e => update(t.id, { calendarTime: e.target.value })}
-                              style={{
-                                fontFamily: '-apple-system, var(--font-mono)', fontSize: 13,
-                                border: `1px solid ${col}44`, borderRadius: 8,
-                                padding: '3px 8px', background: soft, color: col,
-                                outline: 'none', cursor: 'pointer',
-                              }}
-                            />
-                          </div>
                           {/* Recurrence — segmented control style */}
                           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                             {RECURRENCE_OPTIONS.map(opt => {
