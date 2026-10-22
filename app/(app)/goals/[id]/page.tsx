@@ -6,7 +6,6 @@ import { AddTaskDialog } from './add-task-dialog';
 import { GoalTaskItem } from '@/components/ds/GoalTaskItem';
 import { ProgressBar } from '@/components/ds/ProgressBar';
 import { GoalStatusToggle } from '@/components/ds/GoalStatusToggle';
-import { SprintToggle } from '@/components/ds/SprintToggle';
 import { DependsOnPicker } from '@/components/ds/DependsOnPicker';
 
 const HEX_TO_KEY: Record<string, string> = {
@@ -34,7 +33,6 @@ interface GoalWithSphere {
   title: string;
   description: string | null;
   status: string;
-  is_sprint: boolean;
   target_date: string | null;
   spheres: { id: string; name: string; color: string | null; icon: string | null }[] | null;
 }
@@ -67,7 +65,7 @@ export default async function GoalPage({ params }: { params: Promise<{ id: strin
   const [{ data: goal }, { data: tasksRaw }, { data: allGoalsRaw }] = await Promise.all([
     supabase
       .from('plan_goals')
-      .select('id, title, description, status, is_sprint, target_date, depends_on_id, spheres(id, name, color, icon)')
+      .select('id, title, description, status, target_date, depends_on_id, spheres(id, name, color, icon)')
       .eq('id', id)
       .eq('user_id', userId)
       .single(),
@@ -143,7 +141,7 @@ export default async function GoalPage({ params }: { params: Promise<{ id: strin
         {/* Meta row */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
           <GoalStatusToggle goalId={id} currentStatus={g.status} />
-          <SprintToggle goalId={id} isSprint={g.is_sprint ?? false} accent={accent} soft={soft} />
+          {/* SprintToggle returns once the sprint_mode migration (is_sprint column) is applied */}
           <DependsOnPicker
             goalId={id}
             dependsOnId={(g as any).depends_on_id ?? null}

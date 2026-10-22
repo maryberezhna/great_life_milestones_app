@@ -74,9 +74,19 @@ export default async function CalendarPage({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <style>{`
+        @media (max-width: 768px) {
+          .cal-head { padding: 16px 16px 14px !important; }
+          .cal-head-row { flex-wrap: wrap; gap: 12px; }
+          .cal-title { font-size: 22px !important; min-width: 0 !important; }
+          .cal-body { padding: 14px 12px !important; }
+          .cal-day { min-height: 54px !important; padding: 5px 4px 4px !important; }
+          .cal-chip { font-size: 0 !important; height: 5px; padding: 0 !important; border-radius: 99px !important; }
+        }
+      `}</style>
       {/* Header */}
-      <div style={{ padding: '24px 32px 20px', borderBottom: '1px solid hsl(var(--border-subtle))' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+      <div className="cal-head" style={{ padding: '24px 32px 20px', borderBottom: '1px solid hsl(var(--border-subtle))' }}>
+        <div className="cal-head-row" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <div>
             <div style={{
               fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600,
@@ -92,7 +102,7 @@ export default async function CalendarPage({
                 border: '1px solid hsl(var(--border-subtle))',
                 color: 'hsl(var(--text-muted))', textDecoration: 'none', fontSize: 16,
               }}>‹</Link>
-              <h1 style={{
+              <h1 className="cal-title" style={{
                 fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 28,
                 letterSpacing: '-0.02em', color: 'hsl(var(--text-strong))',
                 textTransform: 'capitalize', minWidth: 220,
@@ -122,10 +132,10 @@ export default async function CalendarPage({
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '24px 32px' }}>
+      <div className="cal-body" style={{ flex: 1, overflowY: 'auto', padding: '24px 32px' }}>
         <div style={{ maxWidth: 760 }}>
           {/* Day headers */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 4 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 4, marginBottom: 4 }}>
             {DAYS.map(d => (
               <div key={d} style={{
                 textAlign: 'center', fontFamily: 'var(--font-sans)', fontSize: 12,
@@ -138,7 +148,7 @@ export default async function CalendarPage({
           </div>
 
           {/* Calendar grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 4 }}>
             {days.map((day, i) => {
               if (day === null) {
                 return <div key={`empty-${i}`} style={{ minHeight: 80 }} />;
@@ -147,7 +157,7 @@ export default async function CalendarPage({
               const dayTasks = tasksByDay.get(day) ?? [];
 
               return (
-                <div key={day} style={{
+                <div key={day} className="cal-day" style={{
                   minHeight: 80, padding: '8px 8px 6px',
                   borderRadius: 'var(--radius-md)',
                   background: isToday ? 'hsl(var(--primary-soft))' : 'hsl(var(--surface-card))',
@@ -164,7 +174,7 @@ export default async function CalendarPage({
                     const sphere = Array.isArray(t.plan_goals?.spheres) ? t.plan_goals.spheres[0] : t.plan_goals?.spheres;
                     const k = HEX_TO_KEY[sphere?.color ?? ''] ?? 'violet';
                     return (
-                      <div key={t.id} style={{
+                      <div key={t.id} className="cal-chip" style={{
                         fontSize: 11, fontFamily: 'var(--font-sans)', fontWeight: 500,
                         color: `hsl(var(--sphere-${k}))`,
                         background: `hsl(var(--sphere-${k}-soft))`,

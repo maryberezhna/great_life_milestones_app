@@ -112,7 +112,7 @@ function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange, onSt
 
   return (
     <aside style={{
-      position: 'absolute', top: 0, right: 0, height: '100%', width: 432,
+      position: 'absolute', top: 0, right: 0, height: '100%', width: 'min(432px, 100%)',
       background: 'hsl(var(--surface-card))',
       boxShadow: '-18px 0 48px hsl(28 16% 10% / .16)',
       zIndex: 19, display: 'flex', flexDirection: 'column',
@@ -138,7 +138,7 @@ function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange, onSt
 
       {/* Title + deadline */}
       <div style={{ padding: '18px 26px 0' }}>
-        <h2 style={{ font: 'var(--font-goal-title)', color: 'hsl(var(--text-strong))', letterSpacing: '-0.02em', lineHeight: 1.12 }}>
+        <h2 className="panel-title" style={{ font: 'var(--font-goal-title)', color: 'hsl(var(--text-strong))', letterSpacing: '-0.02em', lineHeight: 1.12 }}>
           {goal.title}
         </h2>
         <div style={{ marginTop: 10 }}>
@@ -522,6 +522,7 @@ export function ConstellationView({ goals: initialGoals, spheres }: Props) {
           .dash-head-left > div:last-child { min-width: 0; overflow-x: auto; scrollbar-width: none; }
           .dash-head-left > div:last-child::-webkit-scrollbar { display: none; }
           .dash-head-left button { white-space: nowrap; }
+          .panel-title { font-size: 26px !important; }
           .dash-head-right { width: 100%; flex-shrink: 1 !important; min-width: 0; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
           .dash-head-right::-webkit-scrollbar { display: none; }
         }

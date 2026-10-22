@@ -79,7 +79,7 @@ export function StatsPanel({ goals, spheres, onClose }: Props) {
       </div>
 
       <div style={{ padding: '18px 26px 28px', display: 'flex', flexDirection: 'column', gap: 26 }}>
-        <h2 style={{ font: 'var(--font-goal-title)', color: 'hsl(var(--text-strong))', letterSpacing: '-0.02em', lineHeight: 1.12, margin: 0 }}>
+        <h2 className="panel-title" style={{ font: 'var(--font-goal-title)', color: 'hsl(var(--text-strong))', letterSpacing: '-0.02em', lineHeight: 1.12, margin: 0 }}>
           Мій ритм
         </h2>
 
