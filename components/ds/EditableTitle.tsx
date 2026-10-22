@@ -3,11 +3,14 @@
 import { useState, useTransition, useRef, useLayoutEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { renameGoal } from '@/app/actions/goals';
+import { SmartHint } from './SmartHint';
 
 // A title you can rename in place: ✎ → edit, Enter saves, Esc cancels, empty is not allowed
-export function EditableTitle({ title, onSave, as: Tag = 'h2', className, style, label = 'Перейменувати' }: {
+export function EditableTitle({ title, onSave, as: Tag = 'h2', className, style, label = 'Перейменувати', hint }: {
   title: string;
   onSave: (next: string) => Promise<void>;
+  // a note under the title (e.g. SMART) for the text shown now; accept() takes its wording
+  hint?: (text: string, accept: (next: string) => void) => React.ReactNode;
   as?: 'h1' | 'h2';
   className?: string;
   style?: React.CSSProperties;
@@ -32,6 +35,10 @@ export function EditableTitle({ title, onSave, as: Tag = 'h2', className, style,
   function save() {
     const t = draft.trim();
     if (!t) { setError('Назва не може бути порожньою'); return; }
+    commit(t);
+  }
+
+  function commit(t: string) {
     if (t === shown) { setEditing(false); return; }
     const prev = shown;
     setShown(t);
@@ -82,6 +89,7 @@ export function EditableTitle({ title, onSave, as: Tag = 'h2', className, style,
             {error ? `⚠ ${error}` : 'Enter — зберегти · Esc — скасувати'}
           </span>
         </div>
+        {hint?.(draft, next => { setDraft(next); setError(''); })}
       </div>
     );
   }
@@ -101,14 +109,16 @@ export function EditableTitle({ title, onSave, as: Tag = 'h2', className, style,
       {error && (
         <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, color: '#dc2626', marginTop: 6 }}>⚠ {error}</div>
       )}
+      {!isPending && hint?.(shown, commit)}
     </div>
   );
 }
 
 // Goal title: renames in the database, then lets the page (and the A4 version) pick it up
-export function GoalTitle({ goalId, title, onRenamed, ...rest }: {
+export function GoalTitle({ goalId, title, targetDate = null, onRenamed, ...rest }: {
   goalId: string;
   title: string;
+  targetDate?: string | null;
   onRenamed?: (title: string) => void;
   as?: 'h1' | 'h2';
   className?: string;
@@ -120,6 +130,7 @@ export function GoalTitle({ goalId, title, onRenamed, ...rest }: {
       {...rest}
       title={title}
       label="Перейменувати ціль"
+      hint={(text, accept) => <SmartHint title={text} targetDate={targetDate} onAccept={accept} />}
       onSave={async t => {
         await renameGoal(goalId, t);
         onRenamed?.(t);

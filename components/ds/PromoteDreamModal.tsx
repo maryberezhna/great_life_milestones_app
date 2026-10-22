@@ -6,6 +6,7 @@ import type { SphereOption } from '@/app/actions/goals';
 import { createGoalFromDream } from '@/app/actions/goals';
 import { createTasks } from '@/app/actions/tasks';
 import { decomposeWithAI } from '@/app/actions/decompose';
+import { SmartHint } from './SmartHint';
 import { NewSphereForm, freeSphereColor, type CreatedSphere } from './NewSphereForm';
 
 type Recurrence = 'none' | 'daily' | 'weekdays' | 'weekly' | 'monthly';
@@ -53,6 +54,8 @@ export function PromoteDreamModal({ dream, spheres: givenSpheres, onClose, onPro
   const spheres: SphereOption[] = [...givenSpheres, ...created];
   const [newSphereOpen, setNewSphereOpen] = useState(givenSpheres.length === 0);
   const [step, setStep]         = useState<Step>(1);
+  // the goal's wording starts as the dream and can take a clearer SMART version
+  const [title, setTitle]       = useState(dream.title);
   const [sphereId, setSphereId] = useState(spheres[0]?.id ?? '');
   const [tasks, setTasks]       = useState<TaskDraft[]>([]);
   const [aiError, setAiError]   = useState<string | null>(null);
@@ -74,7 +77,7 @@ export function PromoteDreamModal({ dream, spheres: givenSpheres, onClose, onPro
     const today = new Date().toISOString().slice(0, 10);
     startAi(async () => {
       try {
-        const steps = await decomposeWithAI(dream.title, sphere?.name ?? '', today);
+        const steps = await decomposeWithAI(title, sphere?.name ?? '', today);
         setTasks(steps.map(s => mkDraft(s.specific, s.deadline)));
         setStep(2);
       } catch {
@@ -93,7 +96,7 @@ export function PromoteDreamModal({ dream, spheres: givenSpheres, onClose, onPro
   function handleSave() {
     startSave(async () => {
       try {
-        const goalId = await createGoalFromDream(dream.title, sphereId);
+        const goalId = await createGoalFromDream(title, sphereId);
         if (valid.length > 0) {
           await createTasks(goalId, valid.map(t => ({
             specific: t.specific.trim(),
@@ -199,8 +202,10 @@ export function PromoteDreamModal({ dream, spheres: givenSpheres, onClose, onPro
               <h2 style={{
                 fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 19,
                 letterSpacing: '-0.02em', color: 'hsl(var(--text-strong))',
-                lineHeight: 1.25, marginBottom: 20,
-              }}>{dream.title}</h2>
+                lineHeight: 1.25, marginBottom: 0,
+              }}>{title}</h2>
+              <SmartHint title={title} onAccept={setTitle} delay={300} />
+              <div style={{ height: 20 }} />
 
               {/* Sphere */}
               <div style={{ marginBottom: 20 }}>
@@ -320,7 +325,7 @@ export function PromoteDreamModal({ dream, spheres: givenSpheres, onClose, onPro
               <h2 style={{
                 fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 18,
                 color: 'hsl(var(--text-strong))', letterSpacing: '-0.02em', lineHeight: 1.25, marginBottom: 4,
-              }}>{dream.title}</h2>
+              }}>{title}</h2>
               <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13.5, color: 'hsl(var(--text-muted))', marginBottom: 18 }}>
                 Перевір або відредагуй кроки перед збереженням.
               </p>
@@ -424,7 +429,7 @@ export function PromoteDreamModal({ dream, spheres: givenSpheres, onClose, onPro
                   color: 'hsl(var(--text-strong))', letterSpacing: '-0.025em', marginBottom: 6,
                 }}>Ціль створена!</h2>
                 <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14.5, color: 'hsl(var(--text-muted))' }}>
-                  «{dream.title}»{valid.length > 0 && <> · {pluralKrok(valid.length)}</>}
+                  «{title}»{valid.length > 0 && <> · {pluralKrok(valid.length)}</>}
                 </p>
               </div>
 
