@@ -3,7 +3,7 @@
 import React, { useState, useRef, useTransition } from 'react';
 import type { Dream } from '@/app/actions/dreams';
 import type { SphereOption } from '@/app/actions/goals';
-import { toggleDream, addDream } from '@/app/actions/dreams';
+import { toggleDream, addDream, renameDream } from '@/app/actions/dreams';
 import { PromoteDreamModal } from './PromoteDreamModal';
 
 const COLORS = ['violet','amber','sage','rose','blue','violet','amber','sage','rose','blue','violet'];
@@ -15,6 +15,10 @@ export function DreamList({ initial, spheres }: { initial: Dream[]; spheres: Sph
   const [addingText, setAddingText] = useState('');
   const [showAdd, setShowAdd]       = useState(false);
   const [flash, setFlash]           = useState<string | null>(null);
+  const [picking, setPicking]       = useState(false);
+  const [editingId, setEditingId]   = useState<string | null>(null);
+  const [editText, setEditText]     = useState('');
+  const [editError, setEditError]   = useState('');
   const [, startTransition]         = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -40,6 +44,23 @@ export function DreamList({ initial, spheres }: { initial: Dream[]; spheres: Sph
     setDreams(next);
     startTransition(async () => {
       try { await toggleDream(dreamId, true); } catch { /* silent */ }
+    });
+  }
+
+  function startRename(e: React.MouseEvent, d: Dream) {
+    e.stopPropagation();
+    setEditingId(d.id); setEditText(d.title); setEditError('');
+  }
+
+  function saveRename(d: Dream) {
+    const t = editText.trim();
+    if (!t) { setEditError('Назва не може бути порожньою'); return; }
+    setEditingId(null);
+    if (t === d.title) return;
+    setDreams(prev => prev.map(x => x.id === d.id ? { ...x, title: t } : x));
+    startTransition(async () => {
+      try { await renameDream(d.id, t); }
+      catch { setDreams(prev => prev.map(x => x.id === d.id ? { ...x, title: d.title } : x)); }
     });
   }
 
@@ -73,6 +94,7 @@ export function DreamList({ initial, spheres }: { initial: Dream[]; spheres: Sph
         .${UID}-flash { animation: ${UID}-pop .55s cubic-bezier(.34,1.56,.64,1); }
         .${UID}-done-btn { opacity: 0; transition: opacity .15s; }
         .${UID}-card:hover .${UID}-done-btn { opacity: 1; }
+        @media (hover: none), (max-width: 768px) { .${UID}-done-btn { opacity: .85; } }
       `}</style>
 
       {/* Progress bar */}
@@ -98,12 +120,89 @@ export function DreamList({ initial, spheres }: { initial: Dream[]; spheres: Sph
         </div>
       )}
 
+      {/* Her own words: time to turn dreams into goals */}
+      {pending.length > 0 && (
+        <div style={{
+          marginBottom: 20, padding: '16px 18px', borderRadius: 16,
+          background: 'hsl(var(--surface-card))', border: '1px solid hsl(var(--border-subtle))',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em', color: 'hsl(var(--text-strong))' }}>
+              Ну що, готовий робити з них цілі?
+            </span>
+            <button onClick={() => setPicking(p => !p)} style={{
+              padding: '9px 16px', borderRadius: 'var(--radius-pill)', border: 'none', cursor: 'pointer',
+              background: picking ? 'hsl(var(--sphere-violet-soft))' : 'hsl(var(--sphere-violet))',
+              color: picking ? 'hsl(var(--sphere-violet))' : '#fff',
+              fontFamily: 'var(--font-sans)', fontSize: 13.5, fontWeight: 700, flexShrink: 0,
+            }}>{picking ? 'Згорнути' : 'Обрати мрію →'}</button>
+          </div>
+          {picking && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 14 }}>
+              {pending.map(d => (
+                <button key={d.id} onClick={() => { setPicking(false); setPromoting(d); }}
+                  disabled={d.id.startsWith('tmp-')}
+                  style={{
+                    padding: '7px 13px', borderRadius: 'var(--radius-pill)', cursor: 'pointer',
+                    border: '1.5px solid hsl(var(--border-subtle))', background: 'transparent',
+                    fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600, color: 'hsl(var(--text-body))',
+                    textAlign: 'left',
+                  }}>{d.title} <span style={{ color: 'hsl(var(--sphere-violet))' }}>→ ціль</span></button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* 2-col grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
         {ordered.map((d, i) => {
           const color  = COLORS[i % COLORS.length];
           const isDone = d.done;
           const isFlash = flash === d.id;
+
+          // renaming: the card turns into a field
+          if (editingId === d.id) {
+            return (
+              <div key={d.id} style={{
+                padding: '14px 14px 12px', minHeight: 120, borderRadius: 16,
+                background: 'hsl(var(--surface-card))',
+                border: `1.5px solid hsl(var(--sphere-${color}))`,
+                display: 'flex', flexDirection: 'column', gap: 8,
+              }}>
+                <textarea autoFocus value={editText} rows={3} aria-label="Нова назва мрії"
+                  onChange={e => { setEditText(e.target.value); if (editError) setEditError(''); }}
+                  onFocus={e => e.currentTarget.select()}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveRename(d); }
+                    if (e.key === 'Escape') { e.preventDefault(); setEditingId(null); }
+                  }}
+                  style={{
+                    border: 'none', outline: 'none', background: 'transparent', resize: 'none', width: '100%',
+                    fontFamily: 'var(--font-sans)', fontSize: 14.5, fontWeight: 600, lineHeight: 1.45,
+                    letterSpacing: '-0.01em', color: 'hsl(var(--text-strong))',
+                  }}
+                />
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <button onClick={() => saveRename(d)} disabled={!editText.trim()} style={{
+                    padding: '5px 12px', borderRadius: 'var(--radius-pill)', border: 'none',
+                    background: editText.trim() ? `hsl(var(--sphere-${color}))` : 'hsl(var(--surface-sunken))',
+                    color: editText.trim() ? '#fff' : 'hsl(var(--text-faint))',
+                    cursor: editText.trim() ? 'pointer' : 'default',
+                    fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 12.5,
+                  }}>Зберегти</button>
+                  <button onClick={() => setEditingId(null)} style={{
+                    padding: '5px 10px', borderRadius: 'var(--radius-pill)', border: '1px solid hsl(var(--border-subtle))',
+                    background: 'transparent', color: 'hsl(var(--text-muted))', cursor: 'pointer',
+                    fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 12.5,
+                  }}>Скасувати</button>
+                </div>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: editError ? '#dc2626' : 'hsl(var(--text-faint))' }}>
+                  {editError ? `⚠ ${editError}` : 'Enter — зберегти · Esc — скасувати'}
+                </span>
+              </div>
+            );
+          }
 
           return (
             <button
@@ -151,6 +250,27 @@ export function DreamList({ initial, spheres }: { initial: Dream[]; spheres: Sph
                   cursor: 'pointer', zIndex: 2,
                 }}
               >✓</span>
+
+              {/* ✎ rename — next to ✓ */}
+              {!d.id.startsWith('tmp-') && (
+                <span
+                  className={`${UID}-done-btn`}
+                  onClick={e => startRename(e, d)}
+                  role="button"
+                  aria-label="Перейменувати мрію"
+                  title="Перейменувати"
+                  style={{
+                    position: 'absolute', top: 10, right: 40,
+                    width: 24, height: 24, borderRadius: '50%',
+                    background: 'hsl(var(--surface-card) / .85)',
+                    border: '1.5px solid hsl(var(--border-subtle))',
+                    color: 'hsl(var(--text-muted))',
+                    fontSize: 12,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', zIndex: 2,
+                  }}
+                >✎</span>
+              )}
 
               {/* "→ до цілей" hint on hover for active dreams */}
               {!isDone && (

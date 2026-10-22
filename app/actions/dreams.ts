@@ -41,3 +41,16 @@ export async function toggleDream(dreamId: string, done: boolean): Promise<void>
   });
   if (error) throw new Error(error.message);
 }
+
+export async function renameDream(dreamId: string, title: string): Promise<void> {
+  const t = title.trim();
+  if (!t) throw new Error('Назва не може бути порожньою');
+  const userId = await getRequiredUserId();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('rename_dream', {
+    p_dream_id: dreamId,
+    p_user_id: userId,
+    p_title: t,
+  });
+  if (error) throw new Error(error.message);
+}

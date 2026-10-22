@@ -21,6 +21,7 @@ const RRULES: Record<string, string> = {
 import { EnergyCenterNode } from './EnergyCheckIn';
 import { IdeasPanel } from './IdeasPanel';
 import { SpheresModal } from './SpheresModal';
+import { GoalTitle } from './EditableTitle';
 
 interface Props {
   goals: ConstellationGoal[];
@@ -51,7 +52,7 @@ function ViewTabs({ view, onView }: { view: View; onView: (v: View) => void }) {
   );
 }
 
-function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange, onStatusChange, onComplete, onDelete }: {
+function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange, onStatusChange, onComplete, onDelete, onRename }: {
   goal: ConstellationGoal;
   spheres: ConstellationSphere[];
   onClose: () => void;
@@ -60,6 +61,7 @@ function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange, onSt
   onStatusChange: (goalId: string, status: 'active' | 'paused') => void;
   onComplete: (goalId: string, status: 'done' | 'active') => void;
   onDelete: (goalId: string) => void;
+  onRename: (goalId: string, title: string) => void;
 }) {
   const sp  = spheres.find(s => s.key === goal.sphere);
   const col  = `hsl(var(--sphere-${goal.sphere}))`;
@@ -151,9 +153,15 @@ function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange, onSt
 
       {/* Title + deadline */}
       <div style={{ padding: '18px 26px 0' }}>
-        <h2 className="panel-title" style={{ font: 'var(--font-goal-title)', color: 'hsl(var(--text-strong))', letterSpacing: '-0.02em', lineHeight: 1.12 }}>
-          {goal.title}
-        </h2>
+        {goal.id && !goal.id.startsWith('tmp-') ? (
+          <GoalTitle key={goal.id} goalId={goal.id} title={goal.title} as="h2" className="panel-title"
+            onRenamed={t => onRename(goal.id!, t)}
+            style={{ font: 'var(--font-goal-title)', color: 'hsl(var(--text-strong))', letterSpacing: '-0.02em', lineHeight: 1.12 }} />
+        ) : (
+          <h2 className="panel-title" style={{ font: 'var(--font-goal-title)', color: 'hsl(var(--text-strong))', letterSpacing: '-0.02em', lineHeight: 1.12 }}>
+            {goal.title}
+          </h2>
+        )}
         <div style={{ marginTop: 10 }}>
           {goal.overdue ? (
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, fontWeight: 500, color: 'hsl(var(--overdue))' }}>
@@ -531,6 +539,10 @@ export function ConstellationView({ goals: initialGoals, spheres }: Props) {
     setSelectedId(undefined);
   }
 
+  function handleRename(goalId: string, title: string) {
+    setGoals(gs => gs.map(g => g.id === goalId ? { ...g, title } : g));
+  }
+
   function handleDelete(goalId: string) {
     setGoals(gs => gs.filter(g => g.id !== goalId));
     setSelectedId(undefined);
@@ -749,6 +761,7 @@ export function ConstellationView({ goals: initialGoals, spheres }: Props) {
             onStatusChange={handleStatusChange}
             onComplete={handleCompleted}
             onDelete={handleDelete}
+            onRename={handleRename}
           />
         )}
 

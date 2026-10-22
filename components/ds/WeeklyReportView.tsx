@@ -5,10 +5,23 @@ import { generateWeeklyReport, deleteReport, type WeeklyReport } from '@/app/act
 
 const fmt = (iso: string) => new Date(iso).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
 
+// a report looks back over the 7 days before it was generated (see generateWeeklyReport)
+function weekOf(iso: string): string {
+  const end = new Date(iso);
+  const start = new Date(end.getTime() - 7 * 86_400_000);
+  const day = (d: Date) => d.toLocaleDateString('uk-UA', { day: 'numeric' });
+  const dayMonth = (d: Date) => d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' });
+  return start.getMonth() === end.getMonth()
+    ? `${day(start)}–${dayMonth(end)}`
+    : `${dayMonth(start)} – ${dayMonth(end)}`;
+}
+
 export function WeeklyReportView({ initialReports }: { initialReports: WeeklyReport[] }) {
   const [reports, setReports] = useState<WeeklyReport[]>(initialReports);
   const [selectedId, setSelectedId] = useState<string | undefined>(initialReports[0]?.id);
   const report = reports.find(r => r.id === selectedId) ?? null;
+  const isLatest = !!report && report.id === reports[0]?.id;
+  const [listOpen, setListOpen] = useState(false);
 
   function remove(id: string) {
     if (!window.confirm('Видалити цей звіт?')) return;
@@ -27,8 +40,9 @@ export function WeeklyReportView({ initialReports }: { initialReports: WeeklyRep
         const r = await generateWeeklyReport();
         setReports(rs => [r, ...rs]);
         setSelectedId(r.id);
-      } catch (e: any) {
-        setError(e.message ?? 'Помилка генерації звіту');
+        setListOpen(false);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Помилка генерації звіту');
       }
     });
   }
@@ -39,7 +53,7 @@ export function WeeklyReportView({ initialReports }: { initialReports: WeeklyRep
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Header */}
       <div style={{ padding: '24px 32px 20px', borderBottom: '1px solid hsl(var(--border-subtle))' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
           <div>
             <h1 style={{
               fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 28,
@@ -47,7 +61,36 @@ export function WeeklyReportView({ initialReports }: { initialReports: WeeklyRep
             }}>
               Тижневий звіт
             </h1>
+            {report && (
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13.5, color: 'hsl(var(--text-muted))', marginTop: 4 }}>
+                За тиждень {weekOf(report.generatedAt)}
+              </div>
+            )}
           </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {reports.length > 0 && (
+            <button
+              onClick={() => setListOpen(o => !o)}
+              aria-expanded={listOpen}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 7,
+                padding: '9px 16px', borderRadius: 'var(--radius-pill)',
+                border: `1.5px solid ${listOpen ? 'hsl(var(--primary))' : 'hsl(var(--border-subtle))'}`,
+                background: listOpen ? 'hsl(var(--primary-soft))' : 'hsl(var(--surface-card))',
+                color: listOpen ? 'hsl(var(--primary))' : 'hsl(var(--text-body))',
+                fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 600,
+                cursor: 'pointer', flexShrink: 0,
+              }}
+            >
+              🗂 Попередні звіти
+              {reports.length > 1 && <span style={{
+                fontFamily: 'var(--font-mono)', fontSize: 11.5, fontWeight: 700,
+                padding: '1px 7px', borderRadius: 999, background: 'hsl(var(--surface-sunken))',
+                color: 'hsl(var(--text-muted))',
+              }}>{reports.length - 1}</span>}
+            </button>
+          )}
 
           <button
             onClick={generate}
@@ -73,6 +116,7 @@ export function WeeklyReportView({ initialReports }: { initialReports: WeeklyRep
               <>◈ {reports.length ? 'Новий звіт' : 'Згенерувати звіт'}</>
             )}
           </button>
+          </div>
         </div>
       </div>
 
@@ -87,6 +131,66 @@ export function WeeklyReportView({ initialReports }: { initialReports: WeeklyRep
               marginBottom: 24,
             }}>
               {error}
+            </div>
+          )}
+
+          {/* All kept reports, newest first — open any of them */}
+          {listOpen && !isPending && (
+            <div style={{ marginBottom: 28 }}>
+              <div style={{
+                fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 700, letterSpacing: '.08em',
+                textTransform: 'uppercase', color: 'hsl(var(--text-faint))', marginBottom: 10,
+              }}>Усі збережені звіти</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {reports.map((r, i) => {
+                  const on = r.id === selectedId;
+                  return (
+                    <div key={r.id} style={{
+                      display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px',
+                      borderRadius: 'var(--radius-md)',
+                      background: on ? 'hsl(var(--primary-soft))' : 'hsl(var(--surface-card))',
+                      border: `1px solid ${on ? 'hsl(var(--primary) / .35)' : 'hsl(var(--border-subtle))'}`,
+                    }}>
+                      <button onClick={() => { setSelectedId(r.id); setListOpen(false); }} style={{
+                        flex: 1, minWidth: 0, textAlign: 'left', border: 'none', background: 'none', padding: 0, cursor: 'pointer',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+                          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 600, color: 'hsl(var(--text-strong))' }}>
+                            Тиждень {weekOf(r.generatedAt)}
+                          </span>
+                          {i === 0 && <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, fontWeight: 700, color: 'hsl(var(--primary))' }}>останній</span>}
+                          {on && <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, color: 'hsl(var(--text-faint))' }}>відкрито</span>}
+                        </div>
+                        <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'hsl(var(--text-muted))', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>{r.summary}</div>
+                      </button>
+                      <button onClick={() => r.id && remove(r.id)} aria-label="Видалити звіт" style={{
+                        width: 32, height: 32, borderRadius: 999, border: 'none', cursor: 'pointer',
+                        background: 'hsl(var(--surface-sunken))', color: 'hsl(var(--text-muted))', flexShrink: 0,
+                      }}>✕</button>
+                    </div>
+                  );
+                })}
+              </div>
+              {reports.length === 1 && (
+                <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.55, color: 'hsl(var(--text-muted))', margin: '12px 2px 0' }}>
+                  Поки що збережено лише цей звіт. Кожен наступний теж лишиться тут — можна буде відкрити будь-який тиждень.
+                </p>
+              )}
+            </div>
+          )}
+
+          {report && !isLatest && !isPending && !listOpen && (
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap',
+              padding: '10px 14px', marginBottom: 20, borderRadius: 'var(--radius-md)',
+              background: 'hsl(var(--surface-sunken))',
+              fontFamily: 'var(--font-sans)', fontSize: 13.5, color: 'hsl(var(--text-body))',
+            }}>
+              <span>Це попередній звіт — за {weekOf(report.generatedAt)}</span>
+              <button onClick={() => setSelectedId(reports[0]?.id)} style={{
+                border: 'none', background: 'none', padding: 0, cursor: 'pointer',
+                fontFamily: 'var(--font-sans)', fontSize: 13.5, fontWeight: 700, color: 'hsl(var(--primary))',
+              }}>До останнього →</button>
             </div>
           )}
 
@@ -205,35 +309,6 @@ export function WeeklyReportView({ initialReports }: { initialReports: WeeklyRep
             </div>
           )}
 
-          {/* Earlier reports — kept automatically */}
-          {reports.length > 1 && !isPending && (
-            <div style={{ marginTop: 32 }}>
-              <div style={{
-                fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 700, letterSpacing: '.08em',
-                textTransform: 'uppercase', color: 'hsl(var(--text-faint))', marginBottom: 10,
-              }}>Попередні звіти</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {reports.filter(r => r.id !== selectedId).map(r => (
-                  <div key={r.id} style={{
-                    display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px',
-                    borderRadius: 'var(--radius-md)', background: 'hsl(var(--surface-card))',
-                    border: '1px solid hsl(var(--border-subtle))',
-                  }}>
-                    <button onClick={() => setSelectedId(r.id)} style={{
-                      flex: 1, minWidth: 0, textAlign: 'left', border: 'none', background: 'none', padding: 0, cursor: 'pointer',
-                    }}>
-                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 600, color: 'hsl(var(--text-strong))' }}>{fmt(r.generatedAt)}</div>
-                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'hsl(var(--text-muted))', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.summary}</div>
-                    </button>
-                    <button onClick={() => r.id && remove(r.id)} aria-label="Видалити звіт" style={{
-                      width: 32, height: 32, borderRadius: 999, border: 'none', cursor: 'pointer',
-                      background: 'hsl(var(--surface-sunken))', color: 'hsl(var(--text-muted))', flexShrink: 0,
-                    }}>✕</button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
