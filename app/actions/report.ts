@@ -7,11 +7,34 @@ import Anthropic from '@anthropic-ai/sdk';
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export interface WeeklyReport {
+  id?: string;
   summary: string;
   wins: string[];
   focus: string[];
   encouragement: string;
   generatedAt: string;
+}
+
+// ── Saved reports ─────────────────────────────────────────────────────────────
+
+export async function getReports(): Promise<WeeklyReport[]> {
+  const userId = await getRequiredUserId();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('weekly_reports')
+    .select('id, report, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(52);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(r => ({ ...(r.report as WeeklyReport), id: r.id, generatedAt: r.created_at }));
+}
+
+export async function deleteReport(id: string): Promise<void> {
+  const userId = await getRequiredUserId();
+  const supabase = await createClient();
+  const { error } = await supabase.from('weekly_reports').delete().eq('id', id).eq('user_id', userId);
+  if (error) throw new Error(error.message);
 }
 
 export async function generateWeeklyReport(): Promise<WeeklyReport> {
@@ -110,11 +133,20 @@ ${upcomingList || 'Немає задач з дедлайнами'}
   if (!jsonMatch) throw new Error('AI не повернув валідний JSON');
 
   const parsed = JSON.parse(jsonMatch[0]);
-  return {
+  const report: WeeklyReport = {
     summary: parsed.summary ?? '',
     wins: parsed.wins ?? [],
     focus: parsed.focus ?? [],
     encouragement: parsed.encouragement ?? '',
     generatedAt: new Date().toISOString(),
   };
+
+  // every generated report is kept
+  const { data: saved, error: saveErr } = await supabase
+    .from('weekly_reports')
+    .insert({ user_id: userId, report })
+    .select('id, created_at')
+    .single();
+  if (saveErr) throw new Error(saveErr.message);
+  return { ...report, id: saved.id, generatedAt: saved.created_at };
 }

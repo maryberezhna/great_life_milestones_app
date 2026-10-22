@@ -313,8 +313,9 @@ export function AppShell({ nav, spheres, userEmail, children }: Props) {
         }
         .tab { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 4px 0; text-decoration: none; color: #8d89a6; font: 600 10.5px var(--font-sans); -webkit-tap-highlight-color: transparent; }
         .tab.on { color: #fff; }
-        .tab-plus { width: 50px; height: 50px; border-radius: 17px; display: grid; place-items: center; color: #fff; font: 400 30px/1 var(--font-sans);
-          background: linear-gradient(140deg, #8b5cf6, #6d28d9); box-shadow: 0 8px 22px -6px #7c3aed; margin-top: -16px; }
+        .tab.plus { justify-content: center; }
+        .tab-plus { width: 46px; height: 40px; border-radius: 14px; display: grid; place-items: center; color: #fff; font: 400 28px/1 var(--font-sans); padding-bottom: 3px;
+          background: linear-gradient(140deg, #8b5cf6, #6d28d9); box-shadow: 0 6px 18px -6px #7c3aed; }
         /* Phone browsers: 100vh includes the hidden toolbar, dvh does not */
         @supports (height: 100dvh) { .app-root { height: 100dvh !important; } }
         @media (max-width: 768px) {

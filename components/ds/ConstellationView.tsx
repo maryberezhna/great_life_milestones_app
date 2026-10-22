@@ -11,6 +11,12 @@ import { DecomposeModal } from './DecomposeModal';
 import { getGoalTasks, toggleTaskDone, type GoalTask } from '@/app/actions/tasks';
 import { setGoalStatus } from '@/app/actions/goals';
 import { CalendarSyncMenu } from './CalendarSyncMenu';
+import { generateIcs, downloadIcs, type IcsEvent } from '@/lib/ics';
+
+const RRULES: Record<string, string> = {
+  daily: 'RRULE:FREQ=DAILY', weekdays: 'RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR',
+  weekly: 'RRULE:FREQ=WEEKLY', monthly: 'RRULE:FREQ=MONTHLY',
+};
 import { EnergyCenterNode } from './EnergyCheckIn';
 import { IdeasPanel } from './IdeasPanel';
 import { SpheresModal } from './SpheresModal';
@@ -73,6 +79,11 @@ function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange, onSt
   const totalCount = tasks.length;
   const prog = totalCount > 0 ? doneCount / totalCount : 0;
   const allDone = totalCount > 0 && doneCount === totalCount;
+  const calendarEvents: IcsEvent[] = tasks
+    // open steps dated today or later — past-dated ones would land (or start repeating) in the past
+    .filter(t => t.deadline && t.status !== 'done' && t.status !== 'irrelevant'
+      && t.deadline.slice(0, 10) >= new Date().toISOString().slice(0, 10))
+    .map(t => ({ uid: t.id, title: t.specific, date: t.deadline!.slice(0, 10), description: `Ціль: ${goal.title}`, rrule: RRULES[t.recurrence] }));
   const [completing, setCompleting] = useState(false);
 
   const isDoneGoal = goal.status === 'done';
@@ -293,9 +304,7 @@ function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange, onSt
                           title: t.specific,
                           date: t.deadline.slice(0, 10),
                           description: `Ціль: ${goal.title}`,
-                          rrule: t.recurrence !== 'none'
-                            ? { daily: 'RRULE:FREQ=DAILY', weekdays: 'RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR', weekly: 'RRULE:FREQ=WEEKLY', monthly: 'RRULE:FREQ=MONTHLY' }[t.recurrence]
-                            : undefined,
+                          rrule: RRULES[t.recurrence],
                         }]}
                       />
                     </span>
@@ -316,6 +325,20 @@ function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange, onSt
 
       {/* CTA */}
       <div style={{ padding: '14px 26px 26px', borderTop: '1px solid hsl(var(--border-subtle))', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {/* All open steps with a date → one calendar file (iPhone offers «Add all» to Calendar) */}
+        {calendarEvents.length > 0 && (
+          <button
+            onClick={() => downloadIcs(generateIcs(calendarEvents), 'sphere-steps.ics')}
+            style={{
+              width: '100%', padding: '12px 20px', borderRadius: 'var(--radius-md)',
+              border: `1.5px solid ${col}`, background: 'transparent', color: col, cursor: 'pointer',
+              fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 14.5,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            }}
+          >
+            📅 Додати {calendarEvents.length === 1 ? 'крок' : `${calendarEvents.length} ${calendarEvents.length < 5 ? 'кроки' : 'кроків'}`} в календар
+          </button>
+        )}
         {/* Complete — works with or without steps; primary once every step is done */}
         <button
           onClick={handleComplete}
