@@ -5,6 +5,7 @@ import React from 'react';
 import Link from 'next/link';
 import { ConstellationGoal, ConstellationSphere } from './GoalConstellation';
 import { LivingSky } from './LivingSky';
+import { StatsPanel } from './StatsPanel';
 import { DecomposeModal } from './DecomposeModal';
 import { getGoalTasks, toggleTaskDone, type GoalTask } from '@/app/actions/tasks';
 import { setGoalStatus } from '@/app/actions/goals';
@@ -467,6 +468,7 @@ export function ConstellationView({ goals: initialGoals, spheres }: Props) {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [ideasOpen, setIdeasOpen] = useState(false);
   const [spheresOpen, setSpheresOpen] = useState(false);
+  const [statsOpen, setStatsOpen] = useState(false);
 
   function handleProgressChange(goalId: string, done: number, total: number) {
     setGoals(gs => gs.map(g => {
@@ -524,7 +526,7 @@ export function ConstellationView({ goals: initialGoals, spheres }: Props) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { setSelectedId(undefined); setIdeasOpen(false); setSpheresOpen(false); }
+      if (e.key === 'Escape') { setSelectedId(undefined); setIdeasOpen(false); setSpheresOpen(false); setStatsOpen(false); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -655,9 +657,21 @@ export function ConstellationView({ goals: initialGoals, spheres }: Props) {
           goals={shown}
           spheres={spheres}
           selectedId={selectedId}
-          onSelect={g => setSelectedId(g?.id ?? undefined)}
+          onSelect={g => { setStatsOpen(false); setSelectedId(g?.id ?? undefined); }}
+          onMeClick={() => { setSelectedId(undefined); setIdeasOpen(false); setSpheresOpen(false); setStatsOpen(true); }}
           style={{ width: '100%', height: '100%' }}
         />
+
+        {/* «Я» → my rhythm */}
+        {statsOpen && (
+          <div onClick={() => setStatsOpen(false)} style={{
+            position: 'absolute', inset: 0,
+            background: 'hsl(28 16% 10% / .14)',
+            backdropFilter: 'blur(1.5px)',
+            zIndex: 18,
+          }} />
+        )}
+        {statsOpen && <StatsPanel goals={goals} spheres={spheres} onClose={() => setStatsOpen(false)} />}
 
         {/* Scrim */}
         {openGoal && (
