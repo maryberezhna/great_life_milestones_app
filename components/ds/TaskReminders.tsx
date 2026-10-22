@@ -79,7 +79,7 @@ export function TaskReminders() {
 
   return (
     <div style={{
-      position: 'fixed', bottom: 24, right: 24, zIndex: 100,
+      position: 'fixed', bottom: 'max(24px, env(safe-area-inset-bottom))', right: 24, zIndex: 100,
       background: 'hsl(var(--surface-card))',
       border: '1px solid hsl(var(--border-subtle))',
       borderRadius: 'var(--radius-xl)',

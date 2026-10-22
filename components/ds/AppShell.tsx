@@ -219,7 +219,7 @@ export function AppShell({ nav, spheres, userEmail, children }: Props) {
   );
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'hsl(var(--background))' }}>
+    <div className="app-root" style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'hsl(var(--background))' }}>
       {/* Mobile overlay */}
       {drawerOpen && (
         <div
@@ -274,10 +274,14 @@ export function AppShell({ nav, spheres, userEmail, children }: Props) {
       </main>
 
       <style>{`
+        /* Phone browsers: 100vh includes the hidden toolbar, dvh does not */
+        @supports (height: 100dvh) { .app-root { height: 100dvh !important; } }
         @media (max-width: 768px) {
           .app-sidebar {
             position: fixed !important;
             top: 0; left: 0; bottom: 0;
+            padding-top: max(20px, env(safe-area-inset-top)) !important;
+            padding-bottom: max(20px, env(safe-area-inset-bottom)) !important;
             z-index: 50;
             transform: translateX(-100%);
             transition: transform .25s cubic-bezier(0.22, 0.61, 0.36, 1);
@@ -294,6 +298,7 @@ export function AppShell({ nav, spheres, userEmail, children }: Props) {
             border-bottom: 1px solid hsl(var(--border-subtle));
             background: hsl(var(--surface-card));
             position: sticky; top: 0; z-index: 10;
+            padding-top: env(safe-area-inset-top);
           }
         }
       `}</style>

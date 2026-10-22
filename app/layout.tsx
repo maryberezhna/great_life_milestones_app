@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Manrope, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 
@@ -19,6 +19,13 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: 'Sphere',
   description: 'Персональний операційний центр цілей',
+  appleWebApp: { capable: true, title: 'Sphere', statusBarStyle: 'default' },
+  icons: { apple: '/apple-touch-icon.png' },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#fdfcfa',
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
