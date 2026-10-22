@@ -4,7 +4,7 @@ import { useRef, useEffect, useState, useTransition } from 'react';
 import React from 'react';
 import Link from 'next/link';
 import { ConstellationGoal, ConstellationSphere } from './GoalConstellation';
-import { ObsidianGraph } from './ObsidianGraph';
+import { LivingSky } from './LivingSky';
 import { DecomposeModal } from './DecomposeModal';
 import { getGoalTasks, toggleTaskDone, type GoalTask } from '@/app/actions/tasks';
 import { setGoalStatus } from '@/app/actions/goals';
@@ -82,7 +82,7 @@ function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange, onSt
   onDecompose: () => void;
   onProgressChange: (goalId: string, done: number, total: number) => void;
   onStatusChange: (goalId: string, status: 'active' | 'paused') => void;
-  onComplete: (goalId: string) => void;
+  onComplete: (goalId: string, status: 'done' | 'active') => void;
   onDelete: (goalId: string) => void;
 }) {
   const sp  = spheres.find(s => s.key === goal.sphere);
@@ -106,11 +106,14 @@ function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange, onSt
   const allDone = totalCount > 0 && doneCount === totalCount;
   const [completing, setCompleting] = useState(false);
 
+  const isDoneGoal = goal.status === 'done';
+
   function handleComplete() {
     if (!goal.id || completing) return;
+    const next = isDoneGoal ? 'active' : 'done';
     setCompleting(true);
-    setGoalStatus(goal.id, 'done')
-      .then(() => onComplete(goal.id!))
+    setGoalStatus(goal.id, next)
+      .then(() => onComplete(goal.id!, next))
       .catch(() => setCompleting(false));
   }
 
@@ -361,7 +364,7 @@ function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange, onSt
             transition: 'all .18s ease',
           }}
         >
-          ✓ {completing ? 'Зберігаю…' : 'Ціль досягнута'}
+          {completing ? 'Зберігаю…' : isDoneGoal ? '↺ Повернути в роботу' : '✓ Ціль досягнута'}
         </button>
 
         {/* Pause / resume */}
@@ -466,11 +469,14 @@ export function ConstellationView({ goals: initialGoals, spheres }: Props) {
   const [spheresOpen, setSpheresOpen] = useState(false);
 
   function handleProgressChange(goalId: string, done: number, total: number) {
-    setGoals(gs => gs.map(g =>
-      g.id === goalId
-        ? { ...g, progress: total > 0 ? done / total : 0, done, total }
-        : g
-    ));
+    setGoals(gs => gs.map(g => {
+      if (g.id !== goalId) return g;
+      // keep the sky's step dates in step with ticks made in the panel
+      const dates = [...(g.doneDates ?? [])];
+      if (done > (g.done ?? 0)) dates.push(new Date().toISOString());
+      else if (done < (g.done ?? 0)) dates.pop();
+      return { ...g, progress: total > 0 ? done / total : 0, done, total, doneDates: dates };
+    }));
   }
 
   function handleStatusChange(goalId: string, status: 'active' | 'paused') {
@@ -494,6 +500,12 @@ export function ConstellationView({ goals: initialGoals, spheres }: Props) {
       }
       return [...gs, goal];
     });
+  }
+
+  // a finished goal stays in the sky as a steady star
+  function handleCompleted(goalId: string, status: 'done' | 'active') {
+    setGoals(gs => gs.map(g => g.id === goalId ? { ...g, status } : g));
+    setSelectedId(undefined);
   }
 
   function handleDelete(goalId: string) {
@@ -522,9 +534,9 @@ export function ConstellationView({ goals: initialGoals, spheres }: Props) {
   const shown = goals.filter(g => {
     if (filter && g.sphere !== filter) return false;
     if (view === 'paused')   return g.status === 'paused';
-    if (view === 'closed')   return g.progress != null && g.progress >= 1;
-    if (view === 'upcoming') return g.status !== 'paused' && !g.overdue && (g.progress ?? 0) < 1;
-    return g.status !== 'paused'; // 'all' = active only
+    if (view === 'closed')   return g.status === 'done' || (g.progress != null && g.progress >= 1);
+    if (view === 'upcoming') return g.status === 'active' && !g.overdue && (g.progress ?? 0) < 1;
+    return g.status !== 'paused'; // 'all' = active + finished (steady stars)
   });
 
   const openGoal = selectedId ? goals.find(g => g.id === selectedId) : null;
@@ -536,6 +548,13 @@ export function ConstellationView({ goals: initialGoals, spheres }: Props) {
       <style>{`
         @keyframes panelIn { from { transform: translateX(30px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         @media (prefers-reduced-motion: reduce) { aside { animation: none !important; } }
+        @media (max-width: 1500px) {
+          .dash-header { flex-wrap: wrap; padding: 10px 14px !important; gap: 10px !important; }
+          .dash-head-left { width: 100%; justify-content: space-between; gap: 10px !important; }
+          .dash-head-left > div:first-of-type { display: none; }
+          .dash-head-right { width: 100%; flex-shrink: 1 !important; min-width: 0; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+          .dash-head-right::-webkit-scrollbar { display: none; }
+        }
       `}</style>
 
       {/* Vignette */}
@@ -545,13 +564,13 @@ export function ConstellationView({ goals: initialGoals, spheres }: Props) {
       }} />
 
       {/* Header */}
-      <header style={{
+      <header className="dash-header" style={{
         position: 'relative',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20,
         padding: '14px 32px', flexShrink: 0,
       }}>
         {/* Left: title + tabs inline */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
+        <div className="dash-head-left" style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
           <h1 style={{
             fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 20,
             letterSpacing: '-0.025em', color: 'hsl(var(--text-strong))',
@@ -563,7 +582,7 @@ export function ConstellationView({ goals: initialGoals, spheres }: Props) {
           <ViewTabs view={view} onView={setView} />
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+        <div className="dash-head-right" style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
           <Legend spheres={spheres} filter={filter} onFilter={setFilter} />
 
           {/* Spheres settings */}
@@ -632,8 +651,7 @@ export function ConstellationView({ goals: initialGoals, spheres }: Props) {
 
       {/* Graph */}
       <div ref={containerRef} style={{ position: 'relative', flex: 1, overflow: 'hidden' }}>
-        <ObsidianGraph
-          key={view + ':' + (filter ?? 'all')}
+        <LivingSky
           goals={shown}
           spheres={spheres}
           selectedId={selectedId}
@@ -660,7 +678,7 @@ export function ConstellationView({ goals: initialGoals, spheres }: Props) {
             onDecompose={() => { setDecomposeGoal(openGoal); setSelectedId(undefined); }}
             onProgressChange={handleProgressChange}
             onStatusChange={handleStatusChange}
-            onComplete={handleDelete}
+            onComplete={handleCompleted}
             onDelete={handleDelete}
           />
         )}
