@@ -174,8 +174,6 @@ export function LivingSky({ goals, spheres, selectedId, onSelect, style }: Props
     .map(s => ({ sphere: s, goals: goals.filter(g => g.sphereId ? g.sphereId === s.id : g.sphere === s.key) }))
     .filter(gr => gr.goals.length > 0);
 
-  const allDates = goals.flatMap(g => g.doneDates ?? []);
-  const alive = groups.filter(gr => gr.goals.some(g => (g.doneDates ?? []).some(d => weeksAgo(d, now) === 0))).length;
 
   let W: number, H: number;
   const lines: React.ReactNode[] = [];
@@ -214,10 +212,6 @@ export function LivingSky({ goals, spheres, selectedId, onSelect, style }: Props
     };
     side(L, -1); side(R, 1);
     body.push(<Me key="me" x={me.x} y={me.y} r={34} />);
-    body.push(<text key="m1" x={me.x} y={me.y + 62} textAnchor="middle" style={{ ...halo, font: `600 12px ${mono}`, fill: '#cfc9ec' }}>
-      світиться {alive} з {groups.length} {plural(groups.length, 'сфери', 'сфер', 'сфер')}</text>);
-    body.push(<text key="m2" x={me.x} y={me.y + 78} textAnchor="middle" style={{ ...halo, font: `600 12px ${mono}`, fill: '#8f8ba6' }}>
-      {kroky(allDates.length)} за весь час</text>);
   } else {
     W = 380;
     const rowH = 60, gap = 30, head = 58;
@@ -242,10 +236,6 @@ export function LivingSky({ goals, spheres, selectedId, onSelect, style }: Props
     });
     H = Math.max(y, 200);
     body.push(<Me key="me" x={me.x} y={me.y} r={24} />);
-    body.push(<text key="m1" x={me.x + 40} y={me.y - 4} style={{ ...halo, font: `600 14px ${sans}`, fill: '#fff' }}>
-      Світиться {alive} з {groups.length} {plural(groups.length, 'сфери', 'сфер', 'сфер')}</text>);
-    body.push(<text key="m2" x={me.x + 40} y={me.y + 14} style={{ ...halo, font: `600 12px ${mono}`, fill: '#8f8ba6' }}>
-      {kroky(allDates.length)} за весь час</text>);
   }
 
   return (
