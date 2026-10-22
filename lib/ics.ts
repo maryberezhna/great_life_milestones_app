@@ -7,6 +7,9 @@ export interface IcsEvent {
   rrule?: string;     // e.g. 'RRULE:FREQ=WEEKLY'
 }
 
+// Every event reminds 2 h and 1 h before start
+const REMINDERS = ['-PT2H', '-PT1H'];
+
 function pad(n: number) { return String(n).padStart(2, '0'); }
 
 function addHour(time: string) {
@@ -39,6 +42,9 @@ export function generateIcs(events: IcsEvent[]): string {
     lines.push(`SUMMARY:${e.title.replace(/\n/g, '\\n')}`);
     if (e.description) lines.push(`DESCRIPTION:${e.description.replace(/\n/g, '\\n')}`);
     if (e.rrule) lines.push(e.rrule.startsWith('RRULE:') ? e.rrule : `RRULE:${e.rrule}`);
+    for (const trigger of REMINDERS) {
+      lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${e.title.replace(/\n/g, '\\n')}`, `TRIGGER:${trigger}`, 'END:VALARM');
+    }
     lines.push('END:VEVENT');
   }
 
