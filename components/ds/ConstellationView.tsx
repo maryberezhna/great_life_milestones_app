@@ -29,7 +29,20 @@ interface Props {
 }
 
 type View = 'all' | 'paused' | 'upcoming' | 'closed';
-const VIEWS: [View, string][] = [['all', 'Активні'], ['paused', 'На паузі'], ['upcoming', 'Майбутні'], ['closed', 'Завершені']];
+// goal panel footer: one main button, the rest small in a row
+const mainBtn: React.CSSProperties = {
+  width: '100%', padding: '12px 20px', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer',
+  color: '#fff', fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 15,
+  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+};
+const smallBtn: React.CSSProperties = {
+  height: 36, padding: '0 10px', borderRadius: 'var(--radius-pill)', cursor: 'pointer', whiteSpace: 'nowrap',
+  border: '1px solid hsl(var(--border-subtle))', background: 'transparent', color: 'hsl(var(--text-muted))',
+  fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 12.5,
+  display: 'inline-flex', alignItems: 'center', gap: 5,
+};
+
+const VIEWS: [View, string][] =[['all', 'Активні'], ['paused', 'На паузі'], ['upcoming', 'Майбутні'], ['closed', 'Завершені']];
 
 function ViewTabs({ view, onView }: { view: View; onView: (v: View) => void }) {
   return (
@@ -354,92 +367,57 @@ function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange, onSt
         })}
       </div>
 
-      {/* CTA */}
-      <div style={{ padding: '14px 26px 26px', borderTop: '1px solid hsl(var(--border-subtle))', display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {/* All open steps with a date → the calendar connected in «Календар» */}
-        {calendarEvents.length > 0 && (
-          <AddToCalendarButton
-            key={goal.id}
-            color={col}
-            events={calendarEvents}
-            label={`Додати ${calendarEvents.length === 1 ? 'крок' : `${calendarEvents.length} ${calendarEvents.length < 5 ? 'кроки' : 'кроків'}`} в календар`}
-          />
-        )}
-        {/* Complete — works with or without steps; primary once every step is done */}
-        <button
-          onClick={handleComplete}
-          disabled={completing}
-          style={{
-            width: '100%', padding: allDone ? '13px 20px' : '11px 20px', borderRadius: 'var(--radius-md)',
-            border: allDone ? 'none' : `1.5px solid ${col}`,
-            cursor: completing ? 'default' : 'pointer',
-            background: allDone ? col : soft,
-            color: allDone ? '#fff' : col,
-            fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: allDone ? 15 : 14,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            boxShadow: allDone ? `0 4px 16px hsl(var(--sphere-${goal.sphere}) / .35)` : 'none',
-            opacity: completing ? 0.6 : 1,
-            transition: 'all .18s ease',
-          }}
-        >
-          {completing ? 'Зберігаю…' : isDoneGoal ? '↺ Повернути в роботу' : '✓ Ціль досягнута'}
-        </button>
-
-        {/* Pause / resume */}
-        <button
-          onClick={() => {
-            if (!goal.id) return;
-            const next = goal.status === 'paused' ? 'active' : 'paused';
-            onStatusChange(goal.id, next);
-            setGoalStatus(goal.id, next).catch(() => onStatusChange(goal.id!, goal.status === 'paused' ? 'paused' : 'active'));
-          }}
-          style={{
-            width: '100%', padding: '11px 20px', borderRadius: 'var(--radius-md)',
-            border: `1.5px solid ${goal.status === 'paused' ? col : 'hsl(var(--border-subtle))'}`,
-            cursor: 'pointer',
-            background: goal.status === 'paused' ? soft : 'transparent',
-            color: goal.status === 'paused' ? col : 'hsl(var(--text-muted))',
-            fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 14,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            transition: 'all .18s ease',
-          }}
-        >
-          {goal.status === 'paused' ? '▶ Відновити ціль' : '⏸ Поставити на паузу'}
-        </button>
-
-        <button onClick={onDecompose} style={{
-          width: '100%', padding: allDone ? '11px 20px' : '13px 20px', borderRadius: 'var(--radius-md)',
-          border: allDone ? '1.5px solid hsl(var(--border-subtle))' : 'none', cursor: 'pointer',
-          background: allDone ? 'transparent' : col, color: allDone ? 'hsl(var(--text-muted))' : '#fff',
-          fontFamily: 'var(--font-sans)', fontWeight: allDone ? 600 : 700, fontSize: allDone ? 14 : 15,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          boxShadow: allDone ? 'none' : `0 4px 16px hsl(var(--sphere-${goal.sphere}) / .35)`,
-        }}>
-          <span style={{ fontSize: 17, lineHeight: 1 }}>✦</span>
-          {totalCount > 0 ? 'Додати ще кроки' : 'Розбити на кроки'}
-        </button>
-
-        {/* Delete */}
-        {!deleteConfirm ? (
-          <button
-            onClick={() => setDeleteConfirm(true)}
-            data-no-brighten
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              fontFamily: 'var(--font-sans)', fontSize: 12.5, fontWeight: 600,
-              color: 'hsl(var(--text-faint))', padding: '4px 0',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-              transition: 'color .18s ease',
-            }}
-            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#dc2626'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'hsl(var(--text-faint))'; }}
-          >
-            <svg width="12" height="12" viewBox="0 0 13 13" fill="none">
-              <path d="M1 3h11M4.5 3V2a1 1 0 011-1h2a1 1 0 011 1v1M5 5.5v4M8 5.5v4M2 3l.75 7a1 1 0 001 .75h5.5a1 1 0 001-.75L11 3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            Видалити ціль
+      {/* CTA — one main action and a single row of small ones, so the steps stay in view on a phone */}
+      <div style={{ padding: '12px 20px 18px', borderTop: '1px solid hsl(var(--border-subtle))', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {allDone ? (
+          <button onClick={handleComplete} disabled={completing} style={{
+            ...mainBtn, background: col, opacity: completing ? 0.6 : 1,
+            boxShadow: `0 4px 16px hsl(var(--sphere-${goal.sphere}) / .35)`,
+          }}>
+            {completing ? 'Зберігаю…' : isDoneGoal ? '↺ Повернути в роботу' : '✓ Ціль досягнута'}
           </button>
         ) : (
+          <button onClick={onDecompose} style={{
+            ...mainBtn, background: col, boxShadow: `0 4px 16px hsl(var(--sphere-${goal.sphere}) / .35)`,
+          }}>
+            <span style={{ fontSize: 16, lineHeight: 1 }}>✦</span>
+            {totalCount > 0 ? 'Додати ще кроки' : 'Розбити на кроки'}
+          </button>
+        )}
+
+        <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
+          {/* All open steps with a date → the calendar connected in «Календар» */}
+          {calendarEvents.length > 0 && (
+            <AddToCalendarButton key={goal.id} inline color={col} events={calendarEvents} label="Календар" />
+          )}
+          {allDone ? (
+            <button onClick={onDecompose} style={smallBtn}>✦ Ще кроки</button>
+          ) : (
+            <button onClick={handleComplete} disabled={completing} style={{ ...smallBtn, color: col, borderColor: `${col}66` }}>
+              {completing ? 'Зберігаю…' : isDoneGoal ? '↺ В роботу' : '✓ Досягнута'}
+            </button>
+          )}
+          <button
+            onClick={() => {
+              if (!goal.id) return;
+              const next = goal.status === 'paused' ? 'active' : 'paused';
+              onStatusChange(goal.id, next);
+              setGoalStatus(goal.id, next).catch(() => onStatusChange(goal.id!, goal.status === 'paused' ? 'paused' : 'active'));
+            }}
+            style={goal.status === 'paused' ? { ...smallBtn, color: col, borderColor: col, background: soft } : smallBtn}
+          >
+            {goal.status === 'paused' ? '▶ Відновити' : '⏸ Пауза'}
+          </button>
+          <button onClick={() => setDeleteConfirm(true)} data-no-brighten aria-label="Видалити ціль" title="Видалити ціль"
+            style={{ ...smallBtn, padding: '0 11px' }}>
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <path d="M1 3h11M4.5 3V2a1 1 0 011-1h2a1 1 0 011 1v1M5 5.5v4M8 5.5v4M2 3l.75 7a1 1 0 001 .75h5.5a1 1 0 001-.75L11 3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+        </div>
+
+        {/* Delete */}
+        {deleteConfirm && (
           <div style={{
             padding: '12px 14px', borderRadius: 'var(--radius-md)',
             background: 'hsl(0 60% 97%)', border: '1px solid hsl(0 60% 88%)',

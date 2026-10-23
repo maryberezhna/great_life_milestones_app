@@ -80,12 +80,12 @@ export function AddToCalendarButton({ events, label = 'Додати в кале�
   return (
     <button type="button" onClick={add} title={title} disabled={state === 'pending'}
       style={{
-        width: inline ? 'auto' : '100%', padding: inline ? '8px 16px' : '12px 20px',
+        width: inline ? 'auto' : '100%', padding: inline ? '8px 13px' : '12px 20px',
         borderRadius: inline ? 'var(--radius-pill)' : 'var(--radius-md)', flexShrink: 0,
         border: `1.5px solid ${col}`, background: state === 'done' ? col : 'transparent',
         color: state === 'done' ? '#fff' : state === 'error' ? 'hsl(var(--overdue))' : col,
         cursor: state === 'pending' ? 'default' : 'pointer',
-        fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: inline ? 13.5 : 14.5,
+        fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: inline ? 13 : 14.5, whiteSpace: 'nowrap',
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
         transition: 'background .2s ease, color .2s ease',
       }}>
