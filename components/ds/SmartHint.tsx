@@ -10,7 +10,8 @@ const NAMES: Record<SmartLetter, string> = {
 // one check per wording — reopening a goal doesn't ask again
 const cache = new Map<string, SmartCheck>();
 
-// Small SMART note under a goal title: what's missing + a clearer wording to take with one tap.
+// Small SMART note under a goal title: one line «бракує: …», a tap opens the questions
+// (and, when only the date is missing, her title + that date to take with one tap).
 // Shows nothing while the goal is SMART enough, while checking, or if the check fails.
 export function SmartHint({ title, targetDate = null, onAccept, delay = 900 }: {
   title: string;
@@ -21,6 +22,7 @@ export function SmartHint({ title, targetDate = null, onAccept, delay = 900 }: {
   const key = `${title.trim()}|${targetDate ?? ''}`;
   const [result, setResult] = useState<{ key: string; check: SmartCheck } | null>(null);
   const [dismissed, setDismissed] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     if (title.trim().length < 3 || cache.has(key)) return;
@@ -38,24 +40,27 @@ export function SmartHint({ title, targetDate = null, onAccept, delay = 900 }: {
 
   return (
     <div style={{
-      marginTop: 10, padding: '10px 12px', borderRadius: 'var(--radius-md)',
+      marginTop: 8, padding: open ? '8px 12px 10px' : '6px 12px', borderRadius: 'var(--radius-md)',
       background: 'hsl(var(--surface-sunken))', border: '1px solid hsl(var(--border-subtle))',
       fontFamily: 'var(--font-sans)', animation: 'fade-up .22s ease',
     }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.08em', color: 'hsl(var(--sphere-violet))' }}>SMART</span>
-        <span style={{ fontSize: 12, color: 'hsl(var(--text-muted))' }}>
-          бракує: {check.missing.map(l => NAMES[l]).join(', ')}
-        </span>
+        <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open} style={{
+          border: 'none', background: 'none', cursor: 'pointer', padding: 0, textAlign: 'left',
+          fontSize: 12, color: 'hsl(var(--text-muted))',
+        }}>
+          бракує: {check.missing.map(l => NAMES[l]).join(', ')} <span aria-hidden>{open ? '▴' : '▾'}</span>
+        </button>
         <button type="button" onClick={() => setDismissed(key)} aria-label="Сховати підказку" style={{
           marginLeft: 'auto', border: 'none', background: 'none', cursor: 'pointer', padding: 0,
           fontSize: 12, color: 'hsl(var(--text-faint))',
         }}>✕</button>
       </div>
-      {check.hint && (
+      {open && check.hint && (
         <div style={{ fontSize: 13, lineHeight: 1.45, color: 'hsl(var(--text-body))', marginTop: 4 }}>{check.hint}</div>
       )}
-      {check.suggestion && (
+      {open && check.suggestion && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
           <span style={{ flex: '1 1 180px', fontSize: 13.5, fontWeight: 600, lineHeight: 1.4, color: 'hsl(var(--text-strong))' }}>
             «{check.suggestion}»
