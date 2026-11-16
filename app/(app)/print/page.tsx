@@ -27,7 +27,8 @@ export default async function PrintPage() {
     supabase.from('plan_goals').select('id, title, sphere_id, target_date, status, description')
       .eq('user_id', userId).in('status', ['active', 'paused']).order('created_at'),
     supabase.from('plan_tasks').select('goal_id, specific, status, deadline')
-      .eq('user_id', userId).neq('status', 'irrelevant').order('created_at'),
+      .eq('user_id', userId).neq('status', 'irrelevant')
+      .order('deadline', { ascending: true, nullsFirst: false }).order('created_at'),
   ]);
 
   const spheres = (spheresRaw ?? []) as { id: string; name: string; color: string; icon: string }[];

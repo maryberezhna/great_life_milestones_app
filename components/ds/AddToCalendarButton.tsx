@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { getCalendarSettings, addToGoogleCalendar, type CalendarProvider } from '@/app/actions/calendar';
 import { generateIcs, downloadIcs, type IcsEvent } from '@/lib/ics';
 
@@ -17,7 +16,7 @@ export function forgetCalendarProvider() { settingsPromise = null; }
 type State = 'idle' | 'pending' | 'done' | 'error';
 
 // One button: steps go to the calendar connected in «Календар».
-// Not connected yet → «Календар», to connect first.
+// Not connected yet → an .ics file, which any calendar opens.
 export function AddToCalendarButton({ events, label = 'Додати в календар', compact = false, inline = false, color }: {
   events: IcsEvent[];
   label?: string;
@@ -25,7 +24,6 @@ export function AddToCalendarButton({ events, label = 'Додати в кале�
   inline?: boolean;    // sized to its text (page headers), not full width
   color?: string;
 }) {
-  const router = useRouter();
   const [provider, setProvider] = useState<CalendarProvider | null | undefined>(undefined);
   const [state, setState] = useState<State>('idle');
 
@@ -38,10 +36,10 @@ export function AddToCalendarButton({ events, label = 'Додати в кале�
   async function add() {
     if (state === 'pending' || events.length === 0) return;
     const p = provider === undefined ? await loadProvider() : provider;
-    if (!p) { router.push('/calendar?connect=1'); return; }
-    if (p === 'apple') {
-      // iPhone and Mac open the file straight in Calendar («Додати все»)
-      downloadIcs(generateIcs(events), 'sphere-steps.ics');
+    if (p !== 'google') {
+      // Apple — or nothing connected yet: the file opens straight in the phone's or computer's
+      // calendar («Додати все»), so adding never stops at a settings page
+      downloadIcs(generateIcs(events), 'sphere.ics');
       setState('done');
       return;
     }
@@ -60,7 +58,7 @@ export function AddToCalendarButton({ events, label = 'Додати в кале�
     : state === 'done' ? 'Додано ✓'
     : state === 'error' ? 'Не вийшло — спробуй ще'
     : label;
-  const title = provider === null ? 'Спершу підключи календар у «Календар»' : undefined;
+  const title = provider === null ? 'Відкриється у календарі телефона чи компʼютера. Google Календар можна підключити в «Календар»' : undefined;
 
   if (compact) {
     return (
