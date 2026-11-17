@@ -8,6 +8,9 @@ import { ProgressBar } from '@/components/ds/ProgressBar';
 import { GoalStatusToggle } from '@/components/ds/GoalStatusToggle';
 import { DependsOnPicker } from '@/components/ds/DependsOnPicker';
 import { GoalTitle } from '@/components/ds/EditableTitle';
+import { AddToCalendarButton } from '@/components/ds/AddToCalendarButton';
+import { RECURRENCE_RRULE, goalDeadlineEvent, type IcsEvent } from '@/lib/ics';
+import { suggestTime } from '@/lib/suggest-time';
 
 const HEX_TO_KEY: Record<string, string> = {
   '#8B5CF6': 'violet',
@@ -27,6 +30,8 @@ interface Task {
   deadline: string | null;
   status: TaskStatus;
   calendar_event_id: string | null;
+  start_time: string | null;
+  recurrence: string;
 }
 
 interface GoalWithSphere {
@@ -72,8 +77,9 @@ export default async function GoalPage({ params }: { params: Promise<{ id: strin
       .single(),
     supabase
       .from('plan_tasks')
-      .select('id, specific, action, result, deadline, status, calendar_event_id, updated_at')
+      .select('id, specific, action, result, deadline, status, calendar_event_id, start_time, recurrence, updated_at')
       .eq('goal_id', id)
+      .order('deadline', { ascending: true, nullsFirst: false })
       .order('created_at'),
     supabase
       .from('plan_goals')
@@ -104,6 +110,18 @@ export default async function GoalPage({ params }: { params: Promise<{ id: strin
   const deadline = g.target_date
     ? new Date(g.target_date).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' })
     : null;
+
+  // open steps dated today or later, plus the goal's own deadline — one tap into the calendar
+  const today = new Date().toISOString().slice(0, 10);
+  const calendarEvents: IcsEvent[] = activeTasks
+    .filter(t => t.deadline && t.status === 'active' && t.deadline.slice(0, 10) >= today)
+    .map(t => ({
+      uid: t.id, title: t.specific, date: t.deadline!.slice(0, 10),
+      time: t.start_time ?? suggestTime(t.specific), description: `Ціль: ${g.title}`,
+      rrule: RECURRENCE_RRULE[t.recurrence],
+    }));
+  const goalEvent = goalDeadlineEvent({ id, title: g.title, targetDate: g.target_date, status: g.status });
+  if (goalEvent) calendarEvents.push(goalEvent);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -167,6 +185,9 @@ export default async function GoalPage({ params }: { params: Promise<{ id: strin
             }}>
               до {deadline}
             </span>
+          )}
+          {calendarEvents.length > 0 && (
+            <AddToCalendarButton inline color={accent} events={calendarEvents} label="Додати в календар" />
           )}
           {totalCount > 0 && (
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'hsl(var(--text-muted))' }}>
@@ -240,6 +261,9 @@ export default async function GoalPage({ params }: { params: Promise<{ id: strin
                     deadline={t.deadline}
                     status={t.status}
                     calendarEventId={t.calendar_event_id}
+                    startTime={t.start_time}
+                    recurrence={t.recurrence}
+                    goalTitle={g.title}
                     accent={accent}
                   />
                 ))}

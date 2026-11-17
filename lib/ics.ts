@@ -5,10 +5,38 @@ export interface IcsEvent {
   time?: string;      // HH:MM, default '09:00'
   description?: string;
   rrule?: string;     // e.g. 'RRULE:FREQ=WEEKLY'
+  allDay?: boolean;   // a goal's deadline — the whole day, no time
 }
 
-// Every event reminds 2 h and 1 h before start
+// a step's repeat (plan_tasks.recurrence) → RRULE
+export const RECURRENCE_RRULE: Record<string, string> = {
+  daily: 'RRULE:FREQ=DAILY', weekdays: 'RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR',
+  weekly: 'RRULE:FREQ=WEEKLY', monthly: 'RRULE:FREQ=MONTHLY',
+};
+
+// uid of a goal's deadline event — steps use their own id
+export const GOAL_UID_PREFIX = 'goal-';
+
+// A goal's deadline as an all-day event; only while it is still ahead and the goal is open.
+export function goalDeadlineEvent(goal: { id: string; title: string; targetDate: string | null; status?: string }): IcsEvent | null {
+  const date = goal.targetDate?.slice(0, 10);
+  if (!date || goal.status === 'done' || date < new Date().toISOString().slice(0, 10)) return null;
+  return { uid: GOAL_UID_PREFIX + goal.id, title: `🎯 ${goal.title}`, date, allDay: true, description: 'Дедлайн цілі' };
+}
+
+// Every step reminds 2 h and 1 h before start;
+// a goal's deadline — a week before and at 9:00 the day before
 const REMINDERS = ['-PT2H', '-PT1H'];
+const ALL_DAY_REMINDERS = ['-P7D', '-PT15H'];
+// the same, in minutes, for Google
+export const REMINDER_MINUTES = [120, 60];
+export const ALL_DAY_REMINDER_MINUTES = [7 * 24 * 60, 15 * 60];
+
+export function nextDay(date: string) {
+  const d = new Date(date + 'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
 
 function pad(n: number) { return String(n).padStart(2, '0'); }
 
@@ -31,18 +59,20 @@ export function generateIcs(events: IcsEvent[]): string {
   ];
 
   for (const e of events) {
-    const t = e.time ?? '09:00';
-    const start = icsDateTime(e.date, t);
-    const end   = icsDateTime(e.date, addHour(t));
-
     lines.push('BEGIN:VEVENT');
     lines.push(`UID:${e.uid}@planning-app`);
-    lines.push(`DTSTART:${start}`);
-    lines.push(`DTEND:${end}`);
+    if (e.allDay) {
+      lines.push(`DTSTART;VALUE=DATE:${e.date.replace(/-/g, '')}`);
+      lines.push(`DTEND;VALUE=DATE:${nextDay(e.date).replace(/-/g, '')}`);
+    } else {
+      const t = e.time ?? '09:00';
+      lines.push(`DTSTART:${icsDateTime(e.date, t)}`);
+      lines.push(`DTEND:${icsDateTime(e.date, addHour(t))}`);
+    }
     lines.push(`SUMMARY:${e.title.replace(/\n/g, '\\n')}`);
     if (e.description) lines.push(`DESCRIPTION:${e.description.replace(/\n/g, '\\n')}`);
     if (e.rrule) lines.push(e.rrule.startsWith('RRULE:') ? e.rrule : `RRULE:${e.rrule}`);
-    for (const trigger of REMINDERS) {
+    for (const trigger of e.allDay ? ALL_DAY_REMINDERS : REMINDERS) {
       lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${e.title.replace(/\n/g, '\\n')}`, `TRIGGER:${trigger}`, 'END:VALARM');
     }
     lines.push('END:VEVENT');

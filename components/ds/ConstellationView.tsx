@@ -11,13 +11,8 @@ import { DecomposeModal } from './DecomposeModal';
 import { getGoalTasks, toggleTaskDone, setTaskTime, type GoalTask } from '@/app/actions/tasks';
 import { setGoalStatus } from '@/app/actions/goals';
 import { AddToCalendarButton } from './AddToCalendarButton';
-import type { IcsEvent } from '@/lib/ics';
+import { RECURRENCE_RRULE as RRULES, goalDeadlineEvent, type IcsEvent } from '@/lib/ics';
 import { suggestTime } from '@/lib/suggest-time';
-
-const RRULES: Record<string, string> = {
-  daily: 'RRULE:FREQ=DAILY', weekdays: 'RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR',
-  weekly: 'RRULE:FREQ=WEEKLY', monthly: 'RRULE:FREQ=MONTHLY',
-};
 import { EnergyCenterNode } from './EnergyCheckIn';
 import { IdeasPanel } from './IdeasPanel';
 import { SpheresModal } from './SpheresModal';
@@ -100,6 +95,9 @@ function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange, onSt
     .filter(t => t.deadline && t.status !== 'done' && t.status !== 'irrelevant'
       && t.deadline.slice(0, 10) >= new Date().toISOString().slice(0, 10))
     .map(t => ({ uid: t.id, title: t.specific, date: t.deadline!.slice(0, 10), time: t.start_time ?? suggestTime(t.specific), description: `Ціль: ${goal.title}`, rrule: RRULES[t.recurrence] }));
+  // the goal's own deadline goes along with its steps
+  const goalEvent = goal.id ? goalDeadlineEvent({ id: goal.id, title: goal.title, targetDate: goal.targetDate ?? null, status: goal.status }) : null;
+  if (goalEvent) calendarEvents.push(goalEvent);
   const [completing, setCompleting] = useState(false);
 
   const isDoneGoal = goal.status === 'done';
@@ -386,7 +384,7 @@ function GoalPanel({ goal, spheres, onClose, onDecompose, onProgressChange, onSt
         )}
 
         <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
-          {/* All open steps with a date → the calendar connected in «Календар» */}
+          {/* All open steps with a date and the goal's deadline → the calendar connected in «Календар» */}
           {calendarEvents.length > 0 && (
             <AddToCalendarButton key={goal.id} inline color={col} events={calendarEvents} label="Календар" />
           )}

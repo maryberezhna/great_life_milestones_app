@@ -21,6 +21,8 @@ export async function getGoalTasks(goalId: string): Promise<GoalTask[]> {
     .eq('goal_id', goalId)
     .eq('user_id', userId)
     .neq('status', 'irrelevant')
+    // steps in the order they happen: by date, undated last, same date — as written
+    .order('deadline', { ascending: true, nullsFirst: false })
     .order('created_at');
   if (error) throw new Error(error.message);
   return (data ?? []) as GoalTask[];

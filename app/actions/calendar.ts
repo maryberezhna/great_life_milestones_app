@@ -4,7 +4,7 @@ import { google } from 'googleapis';
 import { createClient } from '@/lib/supabase/server';
 import { getRequiredUserId } from '@/lib/auth';
 import { getGoogleClientForUser, hasGoogleCredentials, isGoogleConfigured, deleteGoogleCredentials } from '@/lib/google';
-import type { IcsEvent } from '@/lib/ics';
+import { GOAL_UID_PREFIX, REMINDER_MINUTES, ALL_DAY_REMINDER_MINUTES, nextDay, type IcsEvent } from '@/lib/ics';
 
 export type CalendarProvider = 'google' | 'apple';
 
@@ -65,11 +65,11 @@ export async function addToGoogleCalendar(events: IcsEvent[], timeZone: string):
       id,
       summary: e.title,
       description: e.description,
-      start: { dateTime: `${e.date}T${time}:00`, timeZone },
-      end:   { dateTime: `${e.date}T${addHour(time)}:00`, timeZone },
+      start: e.allDay ? { date: e.date } : { dateTime: `${e.date}T${time}:00`, timeZone },
+      end:   e.allDay ? { date: nextDay(e.date) } : { dateTime: `${e.date}T${addHour(time)}:00`, timeZone },
       recurrence: e.rrule ? [e.rrule.startsWith('RRULE:') ? e.rrule : `RRULE:${e.rrule}`] : undefined,
-      // same reminders as the .ics file: 2 h and 1 h before
-      reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: 120 }, { method: 'popup', minutes: 60 }] },
+      // same reminders as the .ics file
+      reminders: { useDefault: false, overrides: (e.allDay ? ALL_DAY_REMINDER_MINUTES : REMINDER_MINUTES).map(minutes => ({ method: 'popup', minutes })) },
     };
     try {
       await calendar.events.insert({ calendarId: 'primary', requestBody });
@@ -78,7 +78,10 @@ export async function addToGoogleCalendar(events: IcsEvent[], timeZone: string):
       if (code !== 409) throw err;
       await calendar.events.update({ calendarId: 'primary', eventId: id, requestBody });
     }
-    await supabase.from('plan_tasks').update({ calendar_event_id: id }).eq('id', e.uid).eq('user_id', userId);
+    // a goal's deadline is not a step — nothing to mark
+    if (!e.uid.startsWith(GOAL_UID_PREFIX)) {
+      await supabase.from('plan_tasks').update({ calendar_event_id: id }).eq('id', e.uid).eq('user_id', userId);
+    }
     added++;
   }
   return added;

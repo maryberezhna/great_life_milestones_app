@@ -5,7 +5,7 @@ import { getRequiredUserId } from '@/lib/auth';
 import { AddToCalendarButton } from '@/components/ds/AddToCalendarButton';
 import { CalendarConnect } from '@/components/ds/CalendarConnect';
 import { getCalendarSettings } from '@/app/actions/calendar';
-import type { IcsEvent } from '@/lib/ics';
+import { RECURRENCE_RRULE, type IcsEvent } from '@/lib/ics';
 
 const DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'];
 const HEX_TO_KEY: Record<string, string> = {
@@ -58,7 +58,7 @@ export default async function CalendarPage({
   const { data: tasks } = await supabase
     .from('plan_tasks')
     .select(`
-      id, specific, deadline, status, calendar_event_id, start_time,
+      id, specific, deadline, status, calendar_event_id, start_time, recurrence,
       plan_goals!inner(id, title, sphere_id, spheres!inner(id, name, color, icon))
     `)
     .eq('user_id', userId)
@@ -131,6 +131,7 @@ export default async function CalendarPage({
                 date: t.deadline!.slice(0, 10),
                 time: t.start_time ?? suggestTime(t.specific),
                 description: `Ціль: ${(t.plan_goals as any)?.title ?? ''}`,
+                rrule: RECURRENCE_RRULE[t.recurrence],
               }));
             return <AddToCalendarButton inline events={icsEvents} label="Додати місяць у календар" />;
           })()}

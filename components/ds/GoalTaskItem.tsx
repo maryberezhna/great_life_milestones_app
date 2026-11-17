@@ -3,6 +3,9 @@
 import { useState, useTransition, useRef, useLayoutEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { updateTaskStatus, updateTask } from '@/app/actions';
+import { AddToCalendarButton } from './AddToCalendarButton';
+import { RECURRENCE_RRULE } from '@/lib/ics';
+import { suggestTime } from '@/lib/suggest-time';
 
 type DbStatus = 'active' | 'postponed' | 'done' | 'irrelevant';
 
@@ -63,10 +66,13 @@ interface Props {
   deadline?: string | null;
   status: DbStatus;
   calendarEventId?: string | null;
+  startTime?: string | null;
+  recurrence?: string;
+  goalTitle?: string;
   accent?: string;
 }
 
-export function GoalTaskItem({ id, goalId, specific, deadline, status, accent = 'hsl(var(--sphere-violet))' }: Props) {
+export function GoalTaskItem({ id, goalId, specific, deadline, status, startTime, recurrence, goalTitle, accent = 'hsl(var(--sphere-violet))' }: Props) {
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState('');
   const [editLink, setEditLink] = useState('');
@@ -226,6 +232,20 @@ export function GoalTaskItem({ id, goalId, specific, deadline, status, accent = 
               fontFamily: 'var(--font-mono)', fontSize: 12,
               color: 'hsl(var(--text-muted))',
             }}>до {fmtDeadline}</span>
+          )}
+          {deadline && !isDone && !isDropped && (
+            <AddToCalendarButton
+              compact
+              color={accent}
+              events={[{
+                uid: id,
+                title: clean,
+                date: deadline.slice(0, 10),
+                time: startTime ?? suggestTime(specific),
+                description: [goalTitle && `Ціль: ${goalTitle}`, link].filter(Boolean).join('\n'),
+                rrule: recurrence ? RECURRENCE_RRULE[recurrence] : undefined,
+              }]}
+            />
           )}
           {isHold && (
             <span style={{
